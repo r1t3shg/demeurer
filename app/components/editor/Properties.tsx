@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useEditorStore } from "../../lib/editor/store";
+import { setProp } from "../../lib/editor/mutations";
+import { resolveProps } from "../../lib/editor/resolve";
 import type { Block } from "../../lib/editor/types";
 import { getSection } from "../../lib/sections";
 import type { SectionQualityIssue } from "../../lib/sections/types";
@@ -35,6 +37,7 @@ export function Properties() {
   const replaceBlockProps = useEditorStore((s) => s.replaceBlockProps);
   const removeBlock = useEditorStore((s) => s.removeBlock);
   const selectBlock = useEditorStore((s) => s.selectBlock);
+  const activeBreakpoint = useEditorStore((s) => s.activeBreakpoint);
   const themeTokens = useThemeTokens();
 
   const block = selectedBlockId ? findBlock(blocks, selectedBlockId) : null;
@@ -53,8 +56,21 @@ export function Properties() {
   const def = getSection(block.type);
   const [showLiquid, setShowLiquid] = useState(false);
 
+  // Cascade-aware view of this block's props at the editor's current
+  // breakpoint. Field renderers display these; quality checks run against
+  // them. Writes route based on `activeBreakpoint` below.
+  const resolved = resolveProps(block, activeBreakpoint);
+
   const handleFieldChange = (key: string, next: unknown) => {
-    replaceBlockProps(block.id, { ...block.props, [key]: next });
+    if (activeBreakpoint === "mobile") {
+      // Mobile is canonical — keep the per-keystroke fast path that
+      // skips history. (Segment 3 may revisit this once override
+      // editing has its own UI.)
+      replaceBlockProps(block.id, { ...block.props.mobile, [key]: next });
+    } else {
+      // Tablet/desktop: write an override at the active breakpoint.
+      setProp(block.id, activeBreakpoint, key, next);
+    }
   };
 
   // Section quality: run the optional `qualityCheck` and reduce to a
@@ -63,7 +79,7 @@ export function Properties() {
   let qualityIssues: SectionQualityIssue[] = [];
   if (def?.qualityCheck) {
     try {
-      qualityIssues = def.qualityCheck(block.props, themeTokens);
+      qualityIssues = def.qualityCheck(resolved, themeTokens);
     } catch {
       qualityIssues = [];
     }
@@ -148,7 +164,7 @@ export function Properties() {
             <FieldRenderer
               key={field.key}
               field={field}
-              value={block.props[field.key]}
+              value={resolved[field.key]}
               onChange={(next) => handleFieldChange(field.key, next)}
             />
           ))

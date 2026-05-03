@@ -8,15 +8,17 @@
  * sections get.
  */
 
+import type { PropsByBreakpoint } from "../../editor/types";
 import type { LiquidOutput, ToLiquidContext } from "../types";
 import { liquidString } from "../_shared/coerce";
 import { coerceImageTextProps, imageTextDefaults } from "./schema";
 
 export function imageTextToLiquid(
-  rawProps: Record<string, unknown>,
+  propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  const props = coerceImageTextProps(rawProps);
+  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
+  const props = coerceImageTextProps(propsByBreakpoint.mobile);
 
   const schema = {
     name: "Image + text",

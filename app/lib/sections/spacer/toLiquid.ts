@@ -5,13 +5,15 @@
  * trivial section that lets the rest of the page breathe.
  */
 
+import type { PropsByBreakpoint } from "../../editor/types";
 import type { LiquidOutput, ToLiquidContext } from "../types";
 import { dividerThicknessPx, spacerDefaults } from "./schema";
 
 export function spacerToLiquid(
-  _rawProps: Record<string, unknown>,
+  _propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
+  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
   const schema = {
     name: "Spacer",
     tag: "section",

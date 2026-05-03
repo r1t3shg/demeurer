@@ -7,14 +7,16 @@
  * here because there is none to inject.
  */
 
+import type { PropsByBreakpoint } from "../../editor/types";
 import type { LiquidOutput, ToLiquidContext } from "../types";
 import { coerceFaqProps, faqDefaults } from "./schema";
 
 export function faqToLiquid(
-  rawProps: Record<string, unknown>,
+  propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  const props = coerceFaqProps(rawProps);
+  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
+  const props = coerceFaqProps(propsByBreakpoint.mobile);
 
   const schema = {
     name: "FAQ",

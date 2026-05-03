@@ -25,8 +25,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getSection } from "../../lib/sections";
 import type { ThemeTokens } from "../../lib/sections";
+import { resolveProps } from "../../lib/editor/resolve";
 import { useEditorStore } from "../../lib/editor/store";
-import type { Block, EditorDocument } from "../../lib/editor/types";
+import type { Block, Breakpoint, EditorDocument } from "../../lib/editor/types";
 
 type Viewport = "desktop" | "tablet" | "mobile";
 
@@ -105,6 +106,7 @@ function IframeCanvas({ pageId, previewQuery, banner }: IframeCanvasProps) {
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const selectBlock = useEditorStore((s) => s.selectBlock);
+  const activeBreakpoint = useEditorStore((s) => s.activeBreakpoint);
 
   // cacheKey = lastSavedAt. Initial null becomes "init".
   const cacheKey = lastSavedAt ?? 0;
@@ -121,8 +123,8 @@ function IframeCanvas({ pageId, previewQuery, banner }: IframeCanvasProps) {
   const [retryNonce, setRetryNonce] = useState(0);
 
   const previewSrc = useMemo(() => {
-    return `/preview/${encodeURIComponent(pageId)}?${previewQuery}&v=${cacheKey}&r=${retryNonce}`;
-  }, [pageId, previewQuery, cacheKey, retryNonce]);
+    return `/preview/${encodeURIComponent(pageId)}?${previewQuery}&v=${cacheKey}&r=${retryNonce}&bp=${activeBreakpoint}`;
+  }, [pageId, previewQuery, cacheKey, retryNonce, activeBreakpoint]);
 
   // Capture scroll just before the src changes so we can restore after
   // reload. We watch the URL itself rather than each input so any
@@ -293,6 +295,7 @@ interface InlinePreviewProps {
 }
 
 function InlinePreview({ themeTokens, document, banner }: InlinePreviewProps) {
+  const activeBreakpoint = useEditorStore((s) => s.activeBreakpoint);
   return (
     <div className="demeurer-editor-pane demeurer-canvas demeurer-canvas-preview">
       {banner ? <div className="demeurer-canvas-banner">{banner}</div> : null}
@@ -307,6 +310,7 @@ function InlinePreview({ themeTokens, document, banner }: InlinePreviewProps) {
               key={block.id}
               block={block}
               themeTokens={themeTokens}
+              breakpoint={activeBreakpoint}
             />
           ))
         )}
@@ -318,9 +322,11 @@ function InlinePreview({ themeTokens, document, banner }: InlinePreviewProps) {
 function InlineBlock({
   block,
   themeTokens,
+  breakpoint,
 }: {
   block: Block;
   themeTokens: ThemeTokens;
+  breakpoint: Breakpoint;
 }) {
   const def = getSection(block.type);
   if (!def) {
@@ -331,9 +337,10 @@ function InlineBlock({
     );
   }
   const { Render } = def;
+  const resolved = resolveProps(block, breakpoint);
   return (
     <div className="demeurer-section-frame demeurer-section-frame-readonly">
-      <Render props={block.props} themeTokens={themeTokens} />
+      <Render props={resolved} themeTokens={themeTokens} />
     </div>
   );
 }

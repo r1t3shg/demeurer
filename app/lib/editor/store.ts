@@ -1,9 +1,15 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
-import { MAX_HISTORY, snapshotDocument } from "./history";
-import type { Block, BlockId, EditorDocument } from "./types";
-import { emptyDocument, isDocument } from "./types";
+import { MAX_HISTORY, snapshotDocument } from "./history.ts";
+import type {
+  Block,
+  BlockId,
+  Breakpoint,
+  EditorDocument,
+  PropsByBreakpoint,
+} from "./types";
+import { emptyDocument, migrateDocument, wrapMobileProps } from "./types.ts";
 
 /**
  * Editor store — in-memory state for one open page.
@@ -23,7 +29,45 @@ import { emptyDocument, isDocument } from "./types";
  * and persists the result.
  *
  * `markSaved()` is the only path back to clean.
+ *
+ * Responsive model (P1.C):
+ *  - `activeBreakpoint` tracks which breakpoint the editor UI is
+ *    currently showing. It's editor UI state, NOT a per-document
+ *    property — the document is breakpoint-agnostic. We persist it to
+ *    localStorage so the editor remembers the merchant's last choice
+ *    across reloads.
+ *  - Every block's props is now a `PropsByBreakpoint` (mobile +
+ *    optional tablet/desktop overrides). Read via `resolveProps` from
+ *    `./resolve.ts`; mutate via `setProp` etc. from `./mutations.ts`.
+ *  - `addBlock` auto-wraps a flat props bag into the canonical shape so
+ *    section authors who write `{ ...defaults }` Just Work.
  */
+
+const ACTIVE_BREAKPOINT_KEY = "demeurer:activeBreakpoint";
+const DEFAULT_BREAKPOINT: Breakpoint = "mobile";
+
+function loadStoredBreakpoint(): Breakpoint {
+  if (typeof window === "undefined") return DEFAULT_BREAKPOINT;
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_BREAKPOINT_KEY);
+    if (raw === "mobile" || raw === "tablet" || raw === "desktop") {
+      return raw;
+    }
+  } catch {
+    // private mode / quota — fall through to default.
+  }
+  return DEFAULT_BREAKPOINT;
+}
+
+function persistBreakpoint(bp: Breakpoint): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ACTIVE_BREAKPOINT_KEY, bp);
+  } catch {
+    // Best effort — autosave still fires, the editor still works, the
+    // merchant just loses cross-reload memory of their breakpoint.
+  }
+}
 
 export interface EditorState {
   document: EditorDocument;
@@ -40,18 +84,46 @@ export interface EditorState {
    */
   historyCursor: number;
 
+  /**
+   * Active editor breakpoint. Drives Canvas resolution + iframe URL.
+   * Editor UI state — never written to the document.
+   */
+  activeBreakpoint: Breakpoint;
+
   loadDocument: (source: unknown) => void;
   selectBlock: (id: BlockId | null) => void;
   addBlock: (block: Block, parentId?: BlockId | null, index?: number) => void;
+  /**
+   * @deprecated Prefer `setProp` from `./mutations.ts` for breakpoint-
+   * aware writes. Kept for compatibility: when `patch.props` is
+   * provided, the value is treated as a MOBILE-LAYER replacement (the
+   * existing call sites all expect "current behavior", which is now
+   * mobile-canonical).
+   */
   updateBlock: (id: BlockId, patch: BlockPatch) => void;
   /**
-   * Replace a block's props WITHOUT pushing onto the history stack.
-   * Used by the temporary JSON textarea in the properties panel — it
-   * fires on every keystroke, so funneling each character through the
-   * undo system would shred history. P1.B replaces the textarea with
-   * proper per-block forms; this action goes away with it.
+   * Replace a block's mobile-layer props WITHOUT pushing onto the
+   * history stack. Used by the properties-panel keystroke path — it
+   * fires on every character, so funneling each through the undo
+   * system would shred history.
+   *
+   * Tablet/desktop overrides on the block are left untouched.
+   *
+   * Segment 3 (override badges + per-breakpoint editing UI) will route
+   * keystroke writes through `mutations.setProp` with the active
+   * breakpoint; this action will likely shrink to mobile-only at that
+   * point.
    */
-  replaceBlockProps: (id: BlockId, props: Record<string, unknown>) => void;
+  replaceBlockProps: (id: BlockId, mobileProps: Record<string, unknown>) => void;
+  /**
+   * Low-level helper: apply a recipe function to a block's
+   * `PropsByBreakpoint` under immer. Used by the breakpoint-aware
+   * mutation helpers in `./mutations.ts`. Pushes history.
+   */
+  mutateBlockProps: (
+    id: BlockId,
+    recipe: (props: PropsByBreakpoint) => void,
+  ) => void;
   removeBlock: (id: BlockId) => void;
   moveBlock: (id: BlockId, newParentId: BlockId | null, newIndex: number) => void;
   undo: () => void;
@@ -59,11 +131,16 @@ export interface EditorState {
   canUndo: () => boolean;
   canRedo: () => boolean;
   markSaved: () => void;
+  setActiveBreakpoint: (bp: Breakpoint) => void;
 }
 
 /** Fields a caller may patch on a block. `id` and `children` are not patchable here. */
 export type BlockPatch = {
   type?: string;
+  /**
+   * Flat mobile-layer props. Treated as a replacement of
+   * `block.props.mobile`; tablet/desktop overrides are untouched.
+   */
   props?: Record<string, unknown>;
 };
 
@@ -93,6 +170,18 @@ function findBlock(blocks: Block[], id: BlockId): Block | null {
   return null;
 }
 
+/**
+ * Detect whether an arbitrary `props` value is already in the canonical
+ * `PropsByBreakpoint` shape. Used by `addBlock` to auto-wrap section
+ * authors' flat default bags without forcing every call site to know
+ * about the breakpoint shape.
+ */
+function isPropsByBreakpoint(value: unknown): value is PropsByBreakpoint {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return !!v.mobile && typeof v.mobile === "object";
+}
+
 export const useEditorStore = create<EditorState>()(
   immer((set, get) => {
     /**
@@ -116,24 +205,16 @@ export const useEditorStore = create<EditorState>()(
       history: [],
       future: [],
       historyCursor: 0,
+      activeBreakpoint: loadStoredBreakpoint(),
 
       loadDocument: (source) =>
         set((state) => {
-          // Loader hands us `unknown` from Prisma's Json column. Validate
-          // shape before trusting it; fall back to an empty doc otherwise.
-          // This also covers brand-new pages where source is `{ blocks: [] }`
-          // (missing the `version` field) — we coerce to a valid v1 doc.
-          if (isDocument(source)) {
-            state.document = source;
-          } else if (
-            source &&
-            typeof source === "object" &&
-            Array.isArray((source as { blocks?: unknown }).blocks)
-          ) {
-            state.document = { version: 1, blocks: [] };
-          } else {
-            state.document = emptyDocument();
-          }
+          // Loader hands us `unknown` from Prisma's Json column. Run
+          // `migrateDocument` to upgrade any v1 (flat-props) document
+          // to the current v2 (PropsByBreakpoint) shape. Idempotent on
+          // already-v2 documents. Brand-new pages with `{ blocks: [] }`
+          // pass through to an empty v2 doc.
+          state.document = migrateDocument(source);
           state.selectedBlockId = null;
           state.isDirty = false;
           state.lastSavedAt = null;
@@ -152,6 +233,15 @@ export const useEditorStore = create<EditorState>()(
 
       addBlock: (block, parentId, index) => {
         const before = snapshotDocument(get().document);
+        // Defensive auto-wrap: section authors write `{ ...defaults }`
+        // when constructing new blocks, which is a flat object, not a
+        // PropsByBreakpoint. Wrap it so the document invariant holds.
+        const normalized: Block = {
+          ...block,
+          props: isPropsByBreakpoint(block.props)
+            ? block.props
+            : wrapMobileProps(block.props as unknown as Record<string, unknown>),
+        };
         set((state) => {
           const target =
             parentId == null
@@ -160,7 +250,7 @@ export const useEditorStore = create<EditorState>()(
           if (!target) return;
           recordHistory(state, before);
           const insertAt = index ?? target.length;
-          target.splice(insertAt, 0, block);
+          target.splice(insertAt, 0, normalized);
           state.isDirty = true;
         });
       },
@@ -172,20 +262,35 @@ export const useEditorStore = create<EditorState>()(
           if (!block) return;
           recordHistory(state, before);
           if (patch.type !== undefined) block.type = patch.type;
-          if (patch.props !== undefined) block.props = patch.props;
+          if (patch.props !== undefined) {
+            // Treat patch.props as the new MOBILE layer. Existing
+            // tablet/desktop overrides are preserved.
+            block.props.mobile = patch.props;
+          }
           state.isDirty = true;
         });
       },
 
-      replaceBlockProps: (id, props) =>
+      replaceBlockProps: (id, mobileProps) =>
         set((state) => {
           const block = findBlock(state.document.blocks, id);
           if (!block) return;
-          block.props = props;
+          block.props.mobile = mobileProps;
           state.isDirty = true;
           // Deliberately NOT calling recordHistory — see the action's
           // doc comment in the EditorState interface.
         }),
+
+      mutateBlockProps: (id, recipe) => {
+        const before = snapshotDocument(get().document);
+        set((state) => {
+          const block = findBlock(state.document.blocks, id);
+          if (!block) return;
+          recordHistory(state, before);
+          recipe(block.props);
+          state.isDirty = true;
+        });
+      },
 
       removeBlock: (id) => {
         const before = snapshotDocument(get().document);
@@ -266,6 +371,13 @@ export const useEditorStore = create<EditorState>()(
           state.isDirty = false;
           state.lastSavedAt = Date.now();
         }),
+
+      setActiveBreakpoint: (bp) => {
+        set((state) => {
+          state.activeBreakpoint = bp;
+        });
+        persistBreakpoint(bp);
+      },
     };
   }),
 );

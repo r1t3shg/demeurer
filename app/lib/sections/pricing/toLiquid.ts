@@ -14,15 +14,17 @@
  * don't collide. When the toggle is OFF, no JS is emitted at all.
  */
 
+import type { PropsByBreakpoint } from "../../editor/types";
 import { liquidString } from "../_shared/coerce";
 import type { LiquidOutput, ToLiquidContext } from "../types";
 import { coercePricingProps, pricingDefaults } from "./schema";
 
 export function pricingToLiquid(
-  rawProps: Record<string, unknown>,
+  propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  const props = coercePricingProps(rawProps);
+  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
+  const props = coercePricingProps(propsByBreakpoint.mobile);
 
   const schema = {
     name: "Pricing",

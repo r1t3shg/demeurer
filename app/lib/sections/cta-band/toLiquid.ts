@@ -8,15 +8,17 @@
  * picks a wildly different background later.
  */
 
+import type { PropsByBreakpoint } from "../../editor/types";
 import type { LiquidOutput, ToLiquidContext } from "../types";
 import { liquidString } from "../_shared/coerce";
 import { coerceCtaBandProps, ctaBandDefaults } from "./schema";
 
 export function ctaBandToLiquid(
-  rawProps: Record<string, unknown>,
+  propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  const props = coerceCtaBandProps(rawProps);
+  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
+  const props = coerceCtaBandProps(propsByBreakpoint.mobile);
 
   const schema = {
     name: "CTA band",

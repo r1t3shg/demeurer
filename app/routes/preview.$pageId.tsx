@@ -24,13 +24,21 @@ import type { LoaderFunctionArgs } from "react-router";
 import { renderToString } from "react-dom/server";
 
 import db from "../db.server";
-import type { Block, EditorDocument } from "../lib/editor/types";
-import { isDocument } from "../lib/editor/types";
+import { resolveProps } from "../lib/editor/resolve";
+import type { Block, Breakpoint } from "../lib/editor/types";
+import { BREAKPOINTS, emptyDocument, migrateDocument } from "../lib/editor/types";
 import { verifyPreviewToken } from "../lib/preview/token.server";
 import { getSection } from "../lib/sections";
 import type { ThemeTokens } from "../lib/sections";
 import { getCachedThemeTokensOrDefault } from "../lib/theme/tokens.server";
 import { getThemeStylesheets } from "../lib/theme/stylesheets.server";
+
+function parseBreakpoint(raw: string | null): Breakpoint {
+  if (raw && (BREAKPOINTS as readonly string[]).includes(raw)) {
+    return raw as Breakpoint;
+  }
+  return "mobile";
+}
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const pageId = params.pageId;
@@ -52,9 +60,11 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     return errorPage(404, "Page not found");
   }
 
-  const doc: EditorDocument = isDocument(page.source)
-    ? page.source
-    : { version: 1, blocks: [] };
+  // Always run through migrateDocument: v1 documents are wrapped to v2 on
+  // the fly so the preview render matches the editor's resolution model.
+  const doc = page.source ? migrateDocument(page.source) : emptyDocument();
+
+  const breakpoint = parseBreakpoint(url.searchParams.get("bp"));
 
   const { tokens } = getCachedThemeTokensOrDefault(shop);
   // Stylesheets are best-effort and cached separately — they don't
@@ -68,6 +78,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       blocks: doc.blocks,
       tokens,
       stylesheetUrls,
+      breakpoint,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -96,6 +107,7 @@ interface RenderInput {
   blocks: Block[];
   tokens: ThemeTokens;
   stylesheetUrls: string[];
+  breakpoint: Breakpoint;
 }
 
 function renderHtml({
@@ -103,9 +115,10 @@ function renderHtml({
   blocks,
   tokens,
   stylesheetUrls,
+  breakpoint,
 }: RenderInput): string {
   const blocksHtml = blocks
-    .map((b) => renderBlock(b, tokens))
+    .map((b) => renderBlock(b, tokens, breakpoint))
     .join("\n");
 
   const themeLinks = stylesheetUrls
@@ -135,7 +148,11 @@ ${empty}
 </html>`;
 }
 
-function renderBlock(block: Block, tokens: ThemeTokens): string {
+function renderBlock(
+  block: Block,
+  tokens: ThemeTokens,
+  breakpoint: Breakpoint,
+): string {
   const def = getSection(block.type);
   if (!def) {
     return wrapBlock(
@@ -145,10 +162,11 @@ function renderBlock(block: Block, tokens: ThemeTokens): string {
   }
 
   const { Render } = def;
+  const resolved = resolveProps(block, breakpoint);
   let inner: string;
   try {
     inner = renderToString(
-      <Render props={block.props} themeTokens={tokens} />,
+      <Render props={resolved} themeTokens={tokens} />,
     );
   } catch (err) {
     inner = `<div class="demeurer-preview-error">Block crashed: ${escapeText(

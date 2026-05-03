@@ -11,16 +11,18 @@
  * URL in the theme editor after publish without a Demeurer rebuild.
  */
 
+import type { PropsByBreakpoint } from "../../editor/types";
 import { liquidString } from "../_shared/coerce";
 import type { LiquidOutput, ToLiquidContext } from "../types";
 import { aspectRatioCss, parseVideoUrl } from "./parse";
 import { coerceVideoProps, videoDefaults } from "./schema";
 
 export function videoToLiquid(
-  rawProps: Record<string, unknown>,
+  propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  const props = coerceVideoProps(rawProps);
+  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
+  const props = coerceVideoProps(propsByBreakpoint.mobile);
   const parsed = parseVideoUrl(props.videoUrl);
   const aspect = aspectRatioCss(props.aspectRatio);
 

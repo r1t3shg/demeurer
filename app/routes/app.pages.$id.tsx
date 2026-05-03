@@ -222,7 +222,7 @@ export default function PageEditor() {
   const isDev = !import.meta.env.PROD;
   const simulateCrash = () => {
     useEditorStore.setState({
-      document: { version: 1, blocks: [] },
+      document: { version: 2, blocks: [] },
       isDirty: false,
       lastSavedAt: null,
       history: [],

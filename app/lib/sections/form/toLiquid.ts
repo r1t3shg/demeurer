@@ -14,15 +14,17 @@
  * Inline JS: NONE. Form submission is a native browser POST.
  */
 
+import type { PropsByBreakpoint } from "../../editor/types";
 import { liquidString } from "../_shared/coerce";
 import type { LiquidOutput, ToLiquidContext } from "../types";
 import { coerceFormProps, fieldHtmlName, formDefaults, splitOptions } from "./schema";
 
 export function formToLiquid(
-  rawProps: Record<string, unknown>,
+  propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  const props = coerceFormProps(rawProps);
+  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
+  const props = coerceFormProps(propsByBreakpoint.mobile);
 
   const schema = {
     name: "Form",

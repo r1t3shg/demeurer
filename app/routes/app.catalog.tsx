@@ -31,6 +31,7 @@ import { Prisma } from "@prisma/client";
 
 import db from "../db.server";
 import { newBlockId } from "../lib/editor/ids";
+import { wrapMobileProps } from "../lib/editor/types";
 import {
   type SectionCategory,
   type SectionDefinition,
@@ -132,7 +133,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const seedBlock = {
     id: newBlockId(),
     type: def.type,
-    props: { ...def.defaults },
+    // v2: flat defaults are wrapped into the canonical mobile layer.
+    props: wrapMobileProps(def.defaults),
     children: [],
   };
 
@@ -142,7 +144,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       title,
       type: "landing",
       handle,
-      source: { version: 1, blocks: [seedBlock] } as unknown as Prisma.InputJsonValue,
+      source: { version: 2, blocks: [seedBlock] } as unknown as Prisma.InputJsonValue,
     },
     select: { id: true },
   });

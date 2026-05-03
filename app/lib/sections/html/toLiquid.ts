@@ -10,14 +10,16 @@
  * editor after Demeurer is uninstalled.
  */
 
+import type { PropsByBreakpoint } from "../../editor/types";
 import type { LiquidOutput, ToLiquidContext } from "../types";
 import { coerceHtmlProps, htmlDefaults } from "./schema";
 
 export function htmlToLiquid(
-  rawProps: Record<string, unknown>,
+  propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  const props = coerceHtmlProps(rawProps);
+  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
+  const props = coerceHtmlProps(propsByBreakpoint.mobile);
 
   const schema = {
     name: "Custom HTML",

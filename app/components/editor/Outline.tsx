@@ -18,6 +18,7 @@ import { handleOutlineDragEnd } from "../../lib/editor/dnd";
 import { newBlockId } from "../../lib/editor/ids";
 import { useEditorStore } from "../../lib/editor/store";
 import type { Block } from "../../lib/editor/types";
+import { wrapMobileProps } from "../../lib/editor/types";
 import { listSectionsByCategory } from "../../lib/sections";
 import type { SectionCategory, SectionDefinition } from "../../lib/sections";
 
@@ -42,10 +43,14 @@ const CATEGORY_LABELS: Record<SectionCategory, string> = {
 
 /** Build a fresh Block from a section definition with its declared defaults. */
 function buildBlockFromSection(def: SectionDefinition): Block {
+  // Section authors declare flat defaults; wrap them as the canonical
+  // mobile layer so the document invariant holds. (The store also
+  // defends against flat props, but wrapping here keeps the contract
+  // local to the call site.)
   return {
     id: newBlockId(),
     type: def.type,
-    props: { ...def.defaults },
+    props: wrapMobileProps(def.defaults),
     children: [],
   };
 }
@@ -252,7 +257,10 @@ function OutlineNode({
 }
 
 function labelFor(block: Block): string {
-  const props = block.props;
+  // Labels read from the canonical mobile layer — they don't change
+  // per breakpoint, and showing a different label depending on the
+  // editor's active breakpoint would be more confusing than useful.
+  const props = block.props.mobile;
   // Prefer the most "title-ish" prop; fall back to a content snippet.
   const candidates = [props.title, props.heading, props.text, props.alt];
   for (const c of candidates) {

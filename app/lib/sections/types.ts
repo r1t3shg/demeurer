@@ -18,6 +18,8 @@
 
 import type { ComponentType, ReactNode } from "react";
 
+import type { PropsByBreakpoint } from "../editor/types";
+
 /** Section icon — a lucide-react icon name (e.g. "Sparkles", "Image"). */
 export type IconName = string;
 
@@ -221,9 +223,17 @@ export interface SectionDefinition {
   defaults: Record<string, unknown>;
   /** Canvas-only React preview. Never rendered on the live storefront. */
   Render: ComponentType<SectionRenderProps>;
-  /** Compile to a native Shopify section. Pure function, server-callable. */
+  /**
+   * Compile to a native Shopify section. Pure function, server-callable.
+   *
+   * Receives the full breakpoint-layered props bag (mobile +
+   * optional tablet/desktop overrides) so the section can emit media
+   * queries that reflect responsive overrides. P1.C segment 4 plumbs
+   * the actual responsive CSS through; segment 1 (this one) just
+   * extracts mobile and emits the previous output unchanged.
+   */
   toLiquid: (
-    props: Record<string, unknown>,
+    propsByBreakpoint: PropsByBreakpoint,
     ctx: ToLiquidContext,
   ) => LiquidOutput;
   /**
