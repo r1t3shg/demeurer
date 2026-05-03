@@ -4,42 +4,82 @@ A Shopify landing-page builder. This document tracks foundation (P0), editor dat
 
 ---
 
-## P1.B — Section library, schema-driven inspectors, RTL/a11y, Lighthouse ✅ Code complete
+## P1.B — Section library + the twelve ✅ COMPLETE 2026-05-03
 
-**Section count: 12.** All sections render in the canvas, expose typed property inspectors via `SectionSchema`, compile to native Liquid via `toLiquid`, and survive uninstall. `Page.source` block trees containing any combination of these are now publish-ready (publish flow itself is P2).
+**Section count: 12.** All sections render in the canvas, expose typed property inspectors via `SectionSchema`, compile to native Liquid via `toLiquid`, and survive uninstall. `Page.source` block trees containing any combination of these are now publish-ready (publish flow itself is P1.D).
 
-| Sections (12) | Type | Category |
-|---|---|---|
-| Hero | `hero` | content |
-| CTA band | `cta-band` | content |
-| Image + text | `image-text` | content |
-| Feature list | `feature-list` | content |
-| Logo wall | `logo-wall` | content |
-| Testimonial | `testimonial` | content |
-| FAQ | `faq` | content |
-| Pricing | `pricing` | content |
-| Video | `video` | media |
-| Form | `form` | form |
-| Spacer | `spacer` | layout |
-| Custom HTML | `html` | advanced |
+| Sections (12) | Type | Category | Notes |
+|---|---|---|---|
+| Hero | `hero` | content | Bg image + heading/sub/CTA. Quality: text-vs-bg contrast, missing heading w/ bg. |
+| CTA band | `cta-band` | content | One/two CTAs, full-width. Quality: AA-readable text color. |
+| Image + text | `image-text` | content | Two-column. Quality: missing alt → yellow. |
+| Feature list | `feature-list` | content | 2/3/4-column tiles, optional icons. |
+| Logo wall | `logo-wall` | content | Static row in canvas; marquee in Liquid. |
+| Testimonial | `testimonial` | content | Single quote or scroll-snap row of multiple. |
+| FAQ | `faq` | content | `<details>`-based accordion (zero JS). |
+| Pricing | `pricing` | content | Up to 5 tiers; monthly/yearly toggle (the only JS carve-out). |
+| Video | `video` | media | YouTube/Vimeo/Shopify-hosted; no autoplay default. |
+| Form | `form` | form | Shopify native `{% form %}` (contact/customer/newsletter). |
+| Spacer | `spacer` | layout | Theme `spacing.unit` multiples. |
+| Custom HTML | `html` | advanced | Unsanitized; merchant trust contract; always yellow warning. |
 
-**Cross-cutting:**
-- **Schema-driven inspectors.** `app/lib/sections/types.ts` defines `SectionSchema` + field kinds (text, richtext, color, range, select, image, list-of-tier, list-of-question, list-of-feature, list-of-logo, list-of-testimonial, list-of-field). `Properties.tsx` dispatches via `FieldRenderer` — no per-section UI code in the inspector.
-- **Section quality indicator.** Each section may declare an optional `qualityCheck(props, themeTokens) → SectionQualityIssue[]`. `Properties.tsx` renders a green/yellow/red banner. Wired today: hero (text/bg contrast, missing heading w/ bg image), cta-band (no AA-readable text color), image-text (missing alt), html (always warning per HTML_WARNING_TEXT). WCAG AA contrast calculator lives at `app/lib/sections/_shared/quality.ts` (`parseHex`, `contrastRatio`, `meetsAA`).
-- **RTL audit.** All hardcoded `padding-left`/`padding-right`/`margin: 0 auto`/`text-align: left|right` in section Renders and Liquid templates converted to CSS logical properties (`paddingInlineStart`/`paddingInlineEnd`/`marginInline`/`textAlign: start|end`). Padding *data* objects (`{ top, right, bottom, left }`) are unchanged — those are model property names.
-- **Pricing toggle JS.** The only carve-out from commitment #2: ~15 lines of inline JS, scoped to `[data-section-id="{{ section.id }}"]`, only emitted when the billing toggle is enabled. No external scripts; fails closed (yearly state ignored if JS off).
-- **Form section uses Shopify native form handlers.** `{% form 'contact' %}` / `{% form 'create_customer' %}` / `{% form 'customer' %}` (newsletter via tagged customer) — submissions flow through Shopify, not Demeurer servers. Pages keep working after uninstall.
-- **Lighthouse 95+ checklist.** Manual methodology in `scripts/lighthouse-check.md`; results template (with expected baselines pending real-store measurement) in `scripts/lighthouse-results.md`. Real measurement is blocked on the publish flow (P2).
+### The dual-rendering contract
+
+Every section ships **two rendering paths** — they are not interchangeable, and both are mandatory.
+
+- **`Render.tsx`** — React component. Runs in the editor canvas (and in the `/app/catalog`). Inputs: `props` (from the schema) + `themeTokens` (from `ThemeTokensContext`). Output: JSX. Goal: keystroke-fast preview that approximates the published storefront within the iframe canvas.
+- **`toLiquid.ts`** — pure function `(props) → { template, schema, presets }`. Runs at compile time (P1.D). Output: a string of Liquid + a `{% schema %}` block. Goal: a native theme section file the merchant could have written by hand. Survives uninstall, runs on Shopify's CDN, has zero Demeurer footprint.
+
+The two **must produce semantically equivalent output** — same DOM order, same content, same accessibility attributes, same responsive behavior. They differ only in how they get there: React for editing, Liquid for publishing. **Every future section must follow this contract.** Authoring guide: `docs/sections.md`.
+
+Why two paths, not one? Liquid is server-rendered and can't keep up with keystroke editing. React is client-side and can't run on the merchant's storefront after uninstall. So we maintain both and lean on `qualityCheck` + manual paste-tests to catch drift.
+
+### Schema-driven inspectors
+`app/lib/sections/types.ts` defines `SectionSchema` + field kinds (text, richtext, color, range, select, image, list-of-tier, list-of-question, list-of-feature, list-of-logo, list-of-testimonial, list-of-field). `Properties.tsx` dispatches via `FieldRenderer` — no per-section UI code in the inspector. New sections only declare schemas; the inspector falls out automatically.
+
+### Section quality indicator
+Each section may declare an optional `qualityCheck(props, themeTokens) → SectionQualityIssue[]`. `Properties.tsx` renders a green/yellow/red banner. Wired today: hero (text/bg contrast, missing heading w/ bg image), cta-band (no AA-readable text color), image-text (missing alt), html (always warning per `HTML_WARNING_TEXT`). WCAG AA contrast calculator at `app/lib/sections/_shared/quality.ts`.
+
+### Internal section catalog
+`/app/catalog` (dev-only — `process.env.NODE_ENV !== "production"` gates loader, action, and the nav link). Lists all 12 sections grouped by category with icon, label, description, type, scaled-down preview rendered into a 1200×640 frame at 0.25 scale. "Add to a new page" creates a fresh `Page` row seeded with the section's defaults and redirects to the editor — useful for development and as the seed of future App Store screenshot flows.
+
+### Verification of the four architectural commitments
+
+| # | Commitment | Status after P1.B |
+|---|------------|---------|
+| 1 | Pages keep rendering after uninstall | ✅ Editor still writes only `Page.source` / `PageVersion`; uninstall handler still deletes only `Session`. No section's editor code ever touches a theme. |
+| 2 | No runtime JavaScript injection from our servers | ✅ One carve-out: Pricing toggle, ~15 lines, scoped, only emitted when the billing toggle is enabled. Fails closed (yearly state ignored if JS off). All other sections ship zero JS. FAQ is `<details>`. Form is native `{% form %}`. |
+| 3 | Pages survive theme updates because they ARE the theme | ✅ `toLiquid` is the canonical output; React renderer is preview-only. Every section's `template` + `{% schema %}` is ready to paste into a Dawn theme as `sections/demeurer-<type>.liquid`. (Automated write is P1.D.) |
+| 4 | Stop if violating 1–3 | ✅ Enforced in code review; `docs/sections.md` repeats the rules; quality indicator surfaces drift. |
 
 ### Lighthouse status
 
-Real measurement requires a working publish pipeline (P2). Until then, `lighthouse-results.md` records *expected* mobile scores per section based on the architecture (no JS for FAQ/Spacer/Form/Image+text/CTA band; lazy-loaded images for Hero/Logo wall/Testimonial; iframe cost flagged for Video; merchant-controlled risk flagged for Custom HTML). Pricing's billing-toggle JS is the only sub-95 risk, expected ~94 mobile.
+Real measurement requires the publish pipeline (P1.D). Until then, `scripts/lighthouse-results.md` records *expected* mobile scores per section based on the architecture: 95+ for FAQ/Spacer/Form/Image+text/CTA band/Hero/Logo wall/Testimonial/Feature list/Video (iframe cost flagged)/HTML (merchant-controlled). Pricing's toggle JS is the only sub-95 risk, expected ~94 mobile. Methodology in `scripts/lighthouse-check.md`.
 
-### Known limitations carried into P2
-- **Testimonial carousel preview** is static in the canvas (Liquid output uses scroll-snap; canvas only shows the first slide).
-- **Logo wall marquee** animation only runs in published Liquid; canvas renders a static row.
-- **Form preview** does not actually submit (canvas success message is a UI hint).
-- **Custom HTML** is unsanitized by design; the trust contract is surfaced via the always-on yellow warning banner in Properties.
+### P1.B exit gate
+
+Manual verification protocol at `scripts/p1b-exit-gate.md`. Statically-verifiable rows (registry & metadata, catalog) are ticked. Rows that require a live embedded session (canvas rendering walk, field renderers, editor regressions, RTL reflow, manual Liquid paste-test in a Dawn theme) cannot be exercised by the agent — they sit with the merchant. Lighthouse remains blocked on the publish flow.
+
+### Known limitations carried into P1.C and beyond
+- **Responsive editing is preview-only.** Sections use logical properties + sensible breakpoints, but there's no per-breakpoint property-override UI yet. That's the entirety of P1.C.
+- **Liquid output is generated but never published.** `toLiquid` produces validated strings; `compile + theme-write` is P1.D.
+- **Custom HTML trusts the merchant.** Unsanitized by design; the trust contract is surfaced via the always-on yellow warning. Flagged "advanced" in the catalog.
+- **Carousels and marquees render statically in canvas.** Testimonial scroll-snap and Logo-wall marquee animate only in published Liquid. Canvas shows the first slide / a static row. Interactivity in the editor is post-MVP.
+- **Form preview does not actually submit.** Canvas success message is a UI hint; real submission goes through Shopify after publish.
+
+### Performance smoke test (manual protocol)
+
+A heavy 12-section page (one of every type, defaults seeded via the catalog "Add to a new page" button) is the canonical stress test. Targets:
+
+| Metric | Target |
+|---|---|
+| Editor remains responsive while typing in any inspector field | < 16ms per keystroke (60fps) |
+| Iframe canvas reload after a property change | < 800ms |
+| Autosave does not queue (no overlapping PATCH requests in DevTools Network) | 1 in-flight max |
+| Memory footprint over 10 minutes of editing | < 300MB heap |
+| Crash recovery from `localStorage` after `Simulate-crash` | < 1s; banner appears, content restores |
+
+Cannot be exercised by the agent — sits with the merchant during the P1.B manual run.
 
 ---
 
@@ -138,35 +178,28 @@ Foundation only is in place. None of the following exist:
 
 ---
 
-## Next 3 things to work on
+## Next 3 things to work on — P1.C (responsive model)
 
-### 1. Compile pipeline + theme writer (the linchpin) — ~3–5 days
+P1.B closed with sections that work "well enough" at any width because they use sensible defaults + logical properties. P1.C makes the merchant control responsive behavior explicitly.
 
-Without this, Demeurer is just a Prisma schema. Build:
-- `app/lib/compile.server.ts` — `compile(source: PageSource): { filename: string, liquid: string }`. Pure function; unit-testable. Start with one block type (hero) and a fixed Liquid template; expand block types incrementally.
-- `app/lib/theme.server.ts` — `writeSection(adminApi, themeId, filename, liquid)` using Asset API; `removeSection(...)` for in-app page delete; idempotent (write is overwrite-safe).
-- A first throwaway route `/dev/compile` that takes a hardcoded `source`, compiles, writes to the dev store's main theme, and prints the resulting filename. Verify in admin **Edit code**.
+### 1. Responsive property model
 
-**Why first:** every other feature depends on the source-tree → Liquid → theme-file path being real and reliable.
+Extend `SectionSchema` so any field can declare per-breakpoint overrides:
+- Add a `responsive: true` flag to field definitions (e.g. `padding`, `columns`, `headingScale`).
+- Editor stores `props.<field>` as either a scalar (today) or an object `{ base, sm, md, lg }`.
+- Inspector renders a "responsive" toggle next to applicable fields → reveals per-breakpoint inputs that fall through to `base`.
+- `Render.tsx` resolves the active breakpoint via `useBreakpoint()` hook (canvas iframe width, not viewport).
+- `toLiquid.ts` emits CSS custom properties + media queries: `--demeurer-padding-block: 16px; @media (min-width: 750px) { --demeurer-padding-block: 24px; }`. No JS to swap values.
 
-### 2. Editor canvas MVP — ~5–8 days
+### 2. Breakpoint preview toolbar
 
-Once compile/write works end-to-end, give the merchant a way to produce `Page.source`:
-- Single-page route `/app/pages/:id` with a left rail (block tree), center canvas (rendered preview), right inspector (block props).
-- Just two block types to start: **Hero** and **TextBlock**. Add more by extending the JSON schema.
-- Autosave to `Page.source` on every change (debounced ~500ms). Don't compile/write on autosave — only on explicit publish.
-- No drag-and-drop yet — use up/down arrows on each block in the tree. Drag-and-drop is a polish step.
+Above the canvas iframe, a width selector (mobile 375 / tablet 750 / desktop 1200 / fluid). Resizes the iframe; the editor surfaces "you are editing the `md` override" affordance whenever the active breakpoint differs from `base`.
 
-**Why second:** the canvas closes the loop — merchant edits → Page.source updates → publish writes Liquid. Without it, you can't ship anything to a friendly beta.
+### 3. Per-section responsive defaults
 
-### 3. Publish flow + `themes/publish` handler — ~2–3 days
+Each section declares default per-breakpoint behavior (e.g. Feature list collapses to 1 column at <750, Hero shrinks heading scale). Defaults live in the schema; merchant overrides them. Quality checks extend to flag responsive issues (e.g. heading > 60px at mobile is yellow).
 
-The publish path that ties everything together and honors commitment #3:
-- `POST /api/pages/:id/publish` → load `Page` → `compile()` → `writeSection()` → set `publishedAt` + `themeId` → insert `PageVersion` snapshot.
-- `app/routes/webhooks.themes.publish.tsx` → list all published `Page` rows for the shop → for each, recompile + write into the newly-published theme. This is what makes "pages survive theme updates because they ARE the theme" actually true.
-- `app/routes/webhooks.themes.update.tsx` (lighter — only triggers when *the active theme* is modified by other apps; usually a no-op for us, but log + observe before deciding behavior).
-
-**Why third:** publish is the merchant's mental model of "shipping a page" and the theme-publish hook is the only correct way to keep pages alive across theme switches.
+After P1.C: P1.D = compile pipeline + theme writer (the linchpin, deferred from P0). Then publish flow + `themes/publish` handler.
 
 ---
 
@@ -190,4 +223,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-03 (P1.B segment 5 code complete: 12 sections, RTL+a11y pass, Lighthouse checklist+results templates. Real Lighthouse measurement blocked on publish pipeline.)
+**Last updated:** 2026-05-03 (P1.B COMPLETE: 12 sections, dual-rendering contract documented, internal `/app/catalog`, exit-gate checklist at `scripts/p1b-exit-gate.md`, authoring guide at `docs/sections.md`. P1.C — responsive model — is next.)

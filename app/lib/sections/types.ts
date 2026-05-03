@@ -205,6 +205,12 @@ export interface SectionDefinition {
   type: string;
   /** Human-readable label shown in the section picker and inspector. */
   label: string;
+  /**
+   * Short, plain-English description of what this section is for. 1–2
+   * sentences, written for the merchant — surfaces in the catalog and
+   * (later) the section picker.
+   */
+  description: string;
   /** Lucide-react icon name (e.g. "Sparkles"). */
   icon: IconName;
   /** Category for grouping in the section picker. */

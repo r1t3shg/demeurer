@@ -11,6 +11,8 @@ import { imageTextToLiquid } from "./toLiquid";
 export const imageTextDefinition: SectionDefinition = {
   type: IMAGE_TEXT_TYPE,
   label: "Image + text",
+  description:
+    "An image paired with a heading, body, and CTA. Choose left- or right-aligned layouts; the image takes 40\u201360% of the width.",
   icon: "Image",
   category: "content",
   schema: imageTextSchema,

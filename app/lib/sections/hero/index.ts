@@ -14,6 +14,8 @@ import { heroToLiquid } from "./toLiquid";
 export const heroDefinition: SectionDefinition = {
   type: HERO_TYPE,
   label: "Hero",
+  description:
+    "A full-width banner with a heading, subheading, and a call-to-action — usually the first thing visitors see on a landing page.",
   icon: "Sparkles",
   category: "content",
   schema: heroSchema,

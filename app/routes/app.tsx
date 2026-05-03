@@ -9,17 +9,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
   // eslint-disable-next-line no-undef
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+  return {
+    // eslint-disable-next-line no-undef
+    apiKey: process.env.SHOPIFY_API_KEY || "",
+    // Catalog is an internal/dev tool — surface in nav only when not in
+    // a production build. Mirrors the gate inside `app.catalog.tsx`.
+    // eslint-disable-next-line no-undef
+    showCatalog: process.env.NODE_ENV !== "production",
+  };
 };
 
 export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>();
+  const { apiKey, showCatalog } = useLoaderData<typeof loader>();
 
   return (
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
-        <s-link href="/app">Home</s-link>
-        <s-link href="/app/additional">Additional page</s-link>
+        <s-link href="/app">Pages</s-link>
+        {showCatalog ? <s-link href="/app/catalog">Catalog</s-link> : null}
       </s-app-nav>
       <Outlet />
     </AppProvider>

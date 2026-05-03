@@ -6,6 +6,8 @@ import { htmlToLiquid } from "./toLiquid";
 export const htmlDefinition: SectionDefinition = {
   type: HTML_TYPE,
   label: "Custom HTML",
+  description:
+    "Paste raw HTML for embeds Demeurer doesn\u2019t cover natively. Output is unsanitized \u2014 the merchant is trusted with what they paste.",
   icon: "Code",
   category: "advanced",
   schema: htmlSchema,

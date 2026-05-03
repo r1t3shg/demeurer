@@ -6,6 +6,8 @@ import { videoToLiquid } from "./toLiquid";
 export const videoDefinition: SectionDefinition = {
   type: VIDEO_TYPE,
   label: "Video",
+  description:
+    "Embed a YouTube, Vimeo, or self-hosted MP4. Iframes lazy-load, third-party domains use no-cookie variants, and autoplay always implies muted.",
   icon: "Play",
   category: "media",
   schema: videoSchema,

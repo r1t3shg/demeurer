@@ -7,6 +7,8 @@ import { ctaBandToLiquid } from "./toLiquid";
 export const ctaBandDefinition: SectionDefinition = {
   type: CTA_BAND_TYPE,
   label: "CTA band",
+  description:
+    "A bold full-width band with one or two call-to-action buttons. Use it to push a single decision near the top or bottom of a page.",
   icon: "Megaphone",
   category: "content",
   schema: ctaBandSchema,
