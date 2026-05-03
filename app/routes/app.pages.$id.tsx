@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useSearchParams } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
 import { SaveIndicator } from "../components/SaveIndicator";
+import { Canvas } from "../components/editor/Canvas";
+import { Outline } from "../components/editor/Outline";
+import { Properties } from "../components/editor/Properties";
 import db from "../db.server";
-import { newBlockId } from "../lib/editor/ids";
-import {
-  clearDraft,
-  useDraftInspection,
-  useDraftMirror,
-} from "../lib/editor/recovery";
+import { useDraftInspection, useDraftMirror } from "../lib/editor/recovery";
 import { useEditorStore } from "../lib/editor/store";
+import type { Block } from "../lib/editor/types";
 import { useAutosave } from "../lib/editor/useAutosave";
 import { getShopFromRequest } from "../lib/shop.server";
+import "../styles/editor.css";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const shop = await getShopFromRequest(request);
@@ -39,8 +39,6 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     },
   });
 
-  // 404 on not-found OR cross-shop access. Don't leak existence to other
-  // shops with a different status code.
   if (!page || page.shop !== shop) {
     throw new Response("Not found", { status: 404 });
   }
@@ -63,16 +61,13 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 export default function PageEditor() {
   const { page } = useLoaderData<typeof loader>();
 
-  const document = useEditorStore((s) => s.document);
-  const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const isDirty = useEditorStore((s) => s.isDirty);
-  const lastSavedAtMs = useEditorStore((s) => s.lastSavedAt);
   const historyCursor = useEditorStore((s) => s.historyCursor);
   const futureLength = useEditorStore((s) => s.future.length);
+  const blocks = useEditorStore((s) => s.document.blocks);
+  const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const loadDocument = useEditorStore((s) => s.loadDocument);
-  const addBlock = useEditorStore((s) => s.addBlock);
   const selectBlock = useEditorStore((s) => s.selectBlock);
-  const markSaved = useEditorStore((s) => s.markSaved);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
 
@@ -83,20 +78,54 @@ export default function PageEditor() {
   );
   useDraftMirror(page.id);
 
-  // Track whether the user dismissed the recovery banner (Restore or
-  // Discard) so we only hydrate from the server once we know what to do.
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [recoveryDecided, setRecoveryDecided] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   // Hydrate from the server doc unless we're waiting on a recovery
-  // decision. Re-runs when route swaps to a different page id.
+  // decision. After hydration, the URL ?b= sync below will pick up any
+  // selection from the URL.
   useEffect(() => {
     if (recovery.kind === "recoverable" && !recoveryDecided) return;
     loadDocument(page.source);
+    setHydrated(true);
   }, [page.id, page.source, recovery.kind, recoveryDecided, loadDocument]);
+
+  // Restore selection from ?b= on first render after hydration. We do
+  // this only once per page-id load — subsequent URL changes are driven
+  // by selectBlock below, not the other way around.
+  const initialBlockParam = searchParams.get("b");
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!initialBlockParam) return;
+    if (blocks.length === 0) return;
+    if (!findBlockId(blocks, initialBlockParam)) return;
+    selectBlock(initialBlockParam);
+    // We deliberately depend only on `hydrated` so this fires once after
+    // hydration, not on every selection change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+
+  // Mirror the current selection into the URL. Use replace so the back
+  // button doesn't fill up with selection states.
+  useEffect(() => {
+    if (!hydrated) return;
+    const current = searchParams.get("b");
+    if (selectedBlockId && current !== selectedBlockId) {
+      const next = new URLSearchParams(searchParams);
+      next.set("b", selectedBlockId);
+      setSearchParams(next, { replace: true });
+    } else if (!selectedBlockId && current) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("b");
+      setSearchParams(next, { replace: true });
+    }
+  }, [selectedBlockId, hydrated, searchParams, setSearchParams]);
 
   // Keyboard shortcuts: Cmd/Ctrl+Z = undo, Cmd/Ctrl+Shift+Z (or Ctrl+Y)
   // = redo. Skip when focus is in an editable element so the browser's
-  // native text-undo wins inside inputs.
+  // native text-undo wins inside inputs / textareas / contenteditable.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -126,24 +155,13 @@ export default function PageEditor() {
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo]);
 
-  const blockCount = document.blocks.length;
-  const lastSavedLabel = lastSavedAtMs
-    ? new Date(lastSavedAtMs).toLocaleTimeString()
-    : "never";
   const canUndo = historyCursor > 0;
   const canRedo = futureLength > 0;
 
   const handleRestore = () => {
     if (recovery.kind !== "recoverable") return;
     loadDocument(recovery.draft.document);
-    // Mark dirty so autosave persists the restored draft to the server.
-    // loadDocument resets isDirty to false; we re-flip it by performing
-    // a no-op edit path: easiest is to call the store's internal dirty
-    // setter via a marker mutation. Since we don't have one, we add
-    // then immediately undo the marker — but that'd push history. The
-    // simplest robust path is to call a private set; but cleaner: just
-    // tell autosave to do its job by updating the doc through the store.
-    // We achieve "dirty after restore" by directly setting state:
+    // Mark dirty so autosave persists the restored draft.
     useEditorStore.setState({ isDirty: true });
     setRecoveryDecided(true);
   };
@@ -153,29 +171,21 @@ export default function PageEditor() {
     setRecoveryDecided(true);
   };
 
-  // Manual QA helper: dropping in-memory state and reloading should
-  // surface the recovery banner on next mount (because writeDraft fires
-  // on every doc change, and lastSavedAt < dirtyAt unless a save has
-  // succeeded since the last edit).
+  // Manual QA helper for crash recovery — kept as a code comment so we
+  // can re-enable it for the localStorage path without rewriting it:
   //
-  // Manual smoke test:
-  //   1. Add 1+ blocks (don't wait for autosave).
-  //   2. Click "Simulate browser crash" before the save indicator says "Saved".
-  //   3. Page reloads. Recovery banner shows. Restore → state returns.
-  const simulateCrash = () => {
-    // Drop in-memory state without markSaved; the localStorage entry
-    // remains because the autosave never confirmed.
-    useEditorStore.setState({
-      document: { version: 1, blocks: [] },
-      isDirty: false,
-      lastSavedAt: null,
-      history: [],
-      future: [],
-      historyCursor: 0,
-      selectedBlockId: null,
-    });
-    window.location.reload();
-  };
+  //   const simulateCrash = () => {
+  //     useEditorStore.setState({
+  //       document: { version: 1, blocks: [] },
+  //       isDirty: false, lastSavedAt: null,
+  //       history: [], future: [], historyCursor: 0,
+  //       selectedBlockId: null,
+  //     });
+  //     window.location.reload();
+  //   };
+  //
+  // Re-add a button in the toolbar that calls simulateCrash() to test
+  // the recovery banner end-to-end.
 
   return (
     <s-page heading={page.title}>
@@ -183,31 +193,25 @@ export default function PageEditor() {
         Back to pages
       </s-button>
 
-      <s-section heading="Save status">
-        <s-stack direction="block" gap="base">
-          <s-stack direction="inline" gap="base">
-            <SaveIndicator
-              saveStatus={saveStatus}
-              lastSavedAt={lastSavedAt}
-              isDirty={isDirty}
-            />
-          </s-stack>
-          <s-stack direction="inline" gap="base">
-            <s-button
-              onClick={() => undo()}
-              {...(canUndo ? {} : { disabled: true })}
-            >
-              Undo
-            </s-button>
-            <s-button
-              onClick={() => redo()}
-              {...(canRedo ? {} : { disabled: true })}
-            >
-              Redo
-            </s-button>
-          </s-stack>
-        </s-stack>
-      </s-section>
+      <div className="demeurer-editor-toolbar">
+        <SaveIndicator
+          saveStatus={saveStatus}
+          lastSavedAt={lastSavedAt}
+          isDirty={isDirty}
+        />
+        <s-button
+          onClick={() => undo()}
+          {...(canUndo ? {} : { disabled: true })}
+        >
+          Undo
+        </s-button>
+        <s-button
+          onClick={() => redo()}
+          {...(canRedo ? {} : { disabled: true })}
+        >
+          Redo
+        </s-button>
+      </div>
 
       {recovery.kind === "recoverable" && !recoveryDecided ? (
         <s-section heading="Unsaved changes detected">
@@ -226,95 +230,22 @@ export default function PageEditor() {
         </s-section>
       ) : null}
 
-      <s-section heading="Editor">
-        <s-stack direction="block" gap="base">
-          <s-banner>
-            Editor canvas coming next. Autosave + undo/redo + crash
-            recovery are wired — try Cmd+Z, or use the chaos button below.
-          </s-banner>
-          <s-paragraph>
-            <s-text>Handle: </s-text>
-            <s-text>{page.handle}</s-text>
-          </s-paragraph>
-          <s-paragraph>
-            <s-text>Type: </s-text>
-            <s-text>{page.type}</s-text>
-          </s-paragraph>
-          <s-paragraph>
-            <s-text>Status: </s-text>
-            {page.publishedAt ? (
-              <s-badge tone="success">Published</s-badge>
-            ) : (
-              <s-badge>Draft</s-badge>
-            )}
-          </s-paragraph>
-        </s-stack>
-      </s-section>
-
-      <s-section heading="Editor state (debug)">
-        <s-stack direction="block" gap="base">
-          <s-paragraph>
-            <s-text>Selected block: </s-text>
-            <s-text>{selectedBlockId ?? "(none)"}</s-text>
-          </s-paragraph>
-          <s-paragraph>
-            <s-text>Dirty: </s-text>
-            {isDirty ? (
-              <s-badge tone="warning">Unsaved</s-badge>
-            ) : (
-              <s-badge tone="success">Clean</s-badge>
-            )}
-          </s-paragraph>
-          <s-paragraph>
-            <s-text>Last saved: </s-text>
-            <s-text>{lastSavedLabel}</s-text>
-          </s-paragraph>
-          <s-paragraph>
-            <s-text>Top-level blocks: </s-text>
-            <s-text>{String(blockCount)}</s-text>
-          </s-paragraph>
-          <s-paragraph>
-            <s-text>History / future: </s-text>
-            <s-text>
-              {historyCursor} / {futureLength}
-            </s-text>
-          </s-paragraph>
-          <s-stack direction="inline" gap="base">
-            <s-button
-              onClick={() =>
-                addBlock({
-                  id: newBlockId(),
-                  type: "hero",
-                  props: { heading: "Stub hero", body: "Lorem ipsum." },
-                  children: [],
-                })
-              }
-            >
-              Add stub hero block
-            </s-button>
-            <s-button onClick={() => selectBlock(null)}>
-              Clear selection
-            </s-button>
-            <s-button onClick={() => markSaved()}>Mark saved</s-button>
-            <s-button
-              variant="primary"
-              tone="critical"
-              onClick={simulateCrash}
-            >
-              Simulate browser crash
-            </s-button>
-            <s-button
-              onClick={() => {
-                clearDraft(page.id);
-              }}
-            >
-              Clear draft (debug)
-            </s-button>
-          </s-stack>
-        </s-stack>
-      </s-section>
+      <div className="demeurer-editor-grid">
+        <Outline />
+        <Canvas />
+        <Properties />
+      </div>
     </s-page>
   );
+}
+
+function findBlockId(blocks: Block[], id: string): string | null {
+  for (const b of blocks) {
+    if (b.id === id) return id;
+    const inner = findBlockId(b.children, id);
+    if (inner) return inner;
+  }
+  return null;
 }
 
 function formatAge(dirtyAtMs: number): string {

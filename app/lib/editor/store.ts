@@ -44,6 +44,14 @@ export interface EditorState {
   selectBlock: (id: BlockId | null) => void;
   addBlock: (block: Block, parentId?: BlockId | null, index?: number) => void;
   updateBlock: (id: BlockId, patch: BlockPatch) => void;
+  /**
+   * Replace a block's props WITHOUT pushing onto the history stack.
+   * Used by the temporary JSON textarea in the properties panel — it
+   * fires on every keystroke, so funneling each character through the
+   * undo system would shred history. P1.B replaces the textarea with
+   * proper per-block forms; this action goes away with it.
+   */
+  replaceBlockProps: (id: BlockId, props: Record<string, unknown>) => void;
   removeBlock: (id: BlockId) => void;
   moveBlock: (id: BlockId, newParentId: BlockId | null, newIndex: number) => void;
   undo: () => void;
@@ -168,6 +176,16 @@ export const useEditorStore = create<EditorState>()(
           state.isDirty = true;
         });
       },
+
+      replaceBlockProps: (id, props) =>
+        set((state) => {
+          const block = findBlock(state.document.blocks, id);
+          if (!block) return;
+          block.props = props;
+          state.isDirty = true;
+          // Deliberately NOT calling recordHistory — see the action's
+          // doc comment in the EditorState interface.
+        }),
 
       removeBlock: (id) => {
         const before = snapshotDocument(get().document);
