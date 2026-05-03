@@ -1,341 +1,230 @@
-import { useEffect } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useFetcher } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
+import { redirect, useFetcher, useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+import db from "../db.server";
+import { getShopFromRequest } from "../lib/shop.server";
+import { generateUniqueHandle } from "../lib/slug.server";
 
-  return null;
+const PAGE_TYPES = ["landing", "product"] as const;
+type PageType = (typeof PAGE_TYPES)[number];
+
+const TYPE_LABELS: Record<PageType, string> = {
+  landing: "Landing",
+  product: "Product",
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-            demoInfo: metafield(namespace: "$app", key: "demo_info") {
-              jsonValue
-            }
-          }
-        }
-      }`,
-    {
-      variables: {
-        product: {
-          title: `${color} Snowboard`,
-          metafields: [
-            {
-              namespace: "$app",
-              key: "demo_info",
-              value: "Created by React Router Template",
-            },
-          ],
-        },
-      },
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const shop = await getShopFromRequest(request);
+
+  const pages = await db.page.findMany({
+    where: { shop },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      handle: true,
+      updatedAt: true,
+      publishedAt: true,
     },
-  );
-  const responseJson = await response.json();
-
-  const product = responseJson.data!.productCreate!.product!;
-  const variantId = product.variants.edges[0]!.node!.id!;
-
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
-  );
-
-  const variantResponseJson = await variantResponse.json();
-
-  const metaobjectResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpsertMetaobject($handle: MetaobjectHandleInput!, $metaobject: MetaobjectUpsertInput!) {
-      metaobjectUpsert(handle: $handle, metaobject: $metaobject) {
-        metaobject {
-          id
-          handle
-          title: field(key: "title") {
-            jsonValue
-          }
-          description: field(key: "description") {
-            jsonValue
-          }
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }`,
-    {
-      variables: {
-        handle: {
-          type: "$app:example",
-          handle: "demo-entry",
-        },
-        metaobject: {
-          fields: [
-            { key: "title", value: "Demo Entry" },
-            {
-              key: "description",
-              value:
-                "This metaobject was created by the Shopify app template to demonstrate the metaobject API.",
-            },
-          ],
-        },
-      },
-    },
-  );
-
-  const metaobjectResponseJson = await metaobjectResponse.json();
+  });
 
   return {
-    product: responseJson!.data!.productCreate!.product,
-    variant:
-      variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
-    metaobject:
-      metaobjectResponseJson!.data!.metaobjectUpsert!.metaobject,
+    pages: pages.map((p) => ({
+      id: p.id,
+      title: p.title,
+      type: p.type,
+      handle: p.handle,
+      updatedAt: p.updatedAt.toISOString(),
+      publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
+    })),
   };
 };
 
-export default function Index() {
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const shop = await getShopFromRequest(request);
+
+  const formData = await request.formData();
+  const title = String(formData.get("title") ?? "").trim();
+  const type = String(formData.get("type") ?? "");
+
+  // Handwritten validation — no zod yet, per scope.
+  if (!title) {
+    return { error: "Title is required.", field: "title" as const };
+  }
+  if (title.length > 200) {
+    return {
+      error: "Title must be 200 characters or fewer.",
+      field: "title" as const,
+    };
+  }
+  if (!PAGE_TYPES.includes(type as PageType)) {
+    return {
+      error: 'Type must be "landing" or "product".',
+      field: "type" as const,
+    };
+  }
+
+  const handle = await generateUniqueHandle(shop, title);
+
+  const page = await db.page.create({
+    data: {
+      shop,
+      title,
+      type,
+      handle,
+      // Empty initial source. Editor schema will fill this in later segments.
+      source: { blocks: [] },
+    },
+    select: { id: true },
+  });
+
+  return redirect(`/app/pages/${page.id}`);
+};
+
+function formatUpdated(iso: string): string {
+  // Lightweight, locale-aware "Mon DD, YYYY HH:MM" format. We can swap in a
+  // relative-time formatter later; for now stable absolute timestamps are
+  // fine and easier to reason about.
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default function PagesIndex() {
+  const { pages } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
 
-  const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
+  const error = fetcher.data && "error" in fetcher.data ? fetcher.data : null;
+  const isSubmitting = fetcher.state === "submitting";
 
-  useEffect(() => {
-    if (fetcher.data?.product?.id) {
-      shopify.toast.show("Product created");
-    }
-  }, [fetcher.data?.product?.id, shopify]);
-
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+  const submitCreate = () => {
+    const form = document.getElementById(
+      "create-page-form",
+    ) as HTMLFormElement | null;
+    if (form) fetcher.submit(form);
+  };
 
   return (
-    <s-page heading="Shopify app template">
-      <s-button slot="primary-action" onClick={generateProduct}>
-        Generate a product
+    <s-page heading="Pages">
+      <s-button
+        slot="primary-action"
+        // Native HTML invoker: opens the s-modal below without imperative refs.
+        // See https://shopify.dev/docs/api/app-home/using-polaris-components for
+        // the command/commandFor pattern.
+        command="--show"
+        commandFor="create-page-modal"
+      >
+        Create page
       </s-button>
 
-      <s-section heading="Congrats on creating a new Shopify app 🎉">
-        <s-paragraph>
-          This embedded app template uses{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
-          >
-            App Bridge
-          </s-link>{" "}
-          interface examples like an{" "}
-          <s-link href="/app/additional">additional page in the app nav</s-link>
-          , as well as an{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            Admin GraphQL
-          </s-link>{" "}
-          mutation demo, to provide a starting point for app development.
-        </s-paragraph>
-      </s-section>
-      <s-section heading="Get started with products">
-        <s-paragraph>
-          Generate a product with GraphQL and get the JSON output for that
-          product. Learn more about the{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-            target="_blank"
-          >
-            productCreate
-          </s-link>{" "}
-          mutation in our API references. Includes a product{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/build/custom-data/metafields"
-            target="_blank"
-          >
-            metafield
-          </s-link>{" "}
-          and{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/build/custom-data/metaobjects"
-            target="_blank"
-          >
-            metaobject
-          </s-link>
-          .
-        </s-paragraph>
-        <s-stack direction="inline" gap="base">
-          <s-button
-            onClick={generateProduct}
-            {...(isLoading ? { loading: true } : {})}
-          >
-            Generate a product
-          </s-button>
-          {fetcher.data?.product && (
-            <s-button
-              onClick={() => {
-                shopify.intents.invoke?.("edit:shopify/Product", {
-                  value: fetcher.data?.product?.id,
-                });
-              }}
-              target="_blank"
-              variant="tertiary"
-            >
-              Edit product
-            </s-button>
-          )}
-        </s-stack>
-        {fetcher.data?.product && (
-          <s-section heading="productCreate mutation">
-            <s-stack direction="block" gap="base">
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
+      {pages.length === 0 ? (
+        <s-section heading="No pages yet">
+          <s-stack direction="block" gap="base">
+            <s-paragraph>
+              Create your first landing or product page. Pages compile to
+              native Liquid sections in your theme — they keep rendering even
+              if you uninstall Demeurer.
+            </s-paragraph>
+            <s-stack direction="inline" gap="base">
+              <s-button
+                variant="primary"
+                command="--show"
+                commandFor="create-page-modal"
               >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.product, null, 2)}</code>
-                </pre>
-              </s-box>
-
-              <s-heading>productVariantsBulkUpdate mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.variant, null, 2)}</code>
-                </pre>
-              </s-box>
-
-              <s-heading>metaobjectUpsert mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>
-                    {JSON.stringify(fetcher.data.metaobject, null, 2)}
-                  </code>
-                </pre>
-              </s-box>
+                Create page
+              </s-button>
             </s-stack>
-          </s-section>
-        )}
-      </s-section>
+          </s-stack>
+        </s-section>
+      ) : (
+        <s-section heading={`${pages.length} page${pages.length === 1 ? "" : "s"}`}>
+          <s-table>
+            <s-table-header-row>
+              <s-table-header>Title</s-table-header>
+              <s-table-header>Type</s-table-header>
+              <s-table-header>Handle</s-table-header>
+              <s-table-header>Updated</s-table-header>
+              <s-table-header>Status</s-table-header>
+            </s-table-header-row>
+            <s-table-body>
+              {pages.map((page) => (
+                <s-table-row key={page.id}>
+                  <s-table-cell>
+                    <s-link href={`/app/pages/${page.id}`}>{page.title}</s-link>
+                  </s-table-cell>
+                  <s-table-cell>
+                    {TYPE_LABELS[page.type as PageType] ?? page.type}
+                  </s-table-cell>
+                  <s-table-cell>
+                    <s-text>{page.handle}</s-text>
+                  </s-table-cell>
+                  <s-table-cell>{formatUpdated(page.updatedAt)}</s-table-cell>
+                  <s-table-cell>
+                    {page.publishedAt ? (
+                      <s-badge tone="success">Published</s-badge>
+                    ) : (
+                      <s-badge>Draft</s-badge>
+                    )}
+                  </s-table-cell>
+                </s-table-row>
+              ))}
+            </s-table-body>
+          </s-table>
+        </s-section>
+      )}
 
-      <s-section slot="aside" heading="App template specs">
-        <s-paragraph>
-          <s-text>Framework: </s-text>
-          <s-link href="https://reactrouter.com/" target="_blank">
-            React Router
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Interface: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/app-home/using-polaris-components"
-            target="_blank"
-          >
-            Polaris web components
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>API: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            GraphQL
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Custom data: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/apps/build/custom-data"
-            target="_blank"
-          >
-            Metafields &amp; metaobjects
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Database: </s-text>
-          <s-link href="https://www.prisma.io/" target="_blank">
-            Prisma
-          </s-link>
-        </s-paragraph>
-      </s-section>
-
-      <s-section slot="aside" heading="Next steps">
-        <s-unordered-list>
-          <s-list-item>
-            Build an{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/getting-started/build-app-example"
-              target="_blank"
-            >
-              example app
-            </s-link>
-          </s-list-item>
-          <s-list-item>
-            Explore Shopify&apos;s API with{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-              target="_blank"
-            >
-              GraphiQL
-            </s-link>
-          </s-list-item>
-        </s-unordered-list>
-      </s-section>
+      <s-modal id="create-page-modal" heading="Create page">
+        <fetcher.Form method="post" id="create-page-form">
+          <s-stack direction="block" gap="base">
+            <s-text-field
+              name="title"
+              label="Page title"
+              required
+              autocomplete="off"
+              {...(error?.field === "title" ? { error: error.error } : {})}
+            />
+            {/* No defaultValue — s-select uses the first non-disabled option
+                (`landing`) as the default when no value is set. */}
+            <s-select name="type" label="Page type">
+              <s-option value="landing">Landing page</s-option>
+              <s-option value="product">Product page</s-option>
+            </s-select>
+            {error && error.field === "type" && (
+              <s-banner tone="critical">{error.error}</s-banner>
+            )}
+          </s-stack>
+        </fetcher.Form>
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          // s-button doesn't expose the HTML `form` attribute, so we trigger
+          // the form submission imperatively via the fetcher. Stays on the
+          // same page on validation errors (modal remains open); follows the
+          // action's redirect to /app/pages/:id on success.
+          onClick={submitCreate}
+          {...(isSubmitting ? { loading: true } : {})}
+        >
+          Create
+        </s-button>
+        <s-button
+          slot="secondary-actions"
+          command="--hide"
+          commandFor="create-page-modal"
+        >
+          Cancel
+        </s-button>
+      </s-modal>
     </s-page>
   );
 }
