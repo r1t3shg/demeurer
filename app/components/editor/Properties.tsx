@@ -1,26 +1,16 @@
 import { useEditorStore } from "../../lib/editor/store";
 import type { Block } from "../../lib/editor/types";
-import type { Field } from "../../lib/sections";
 import { getSection } from "../../lib/sections";
-import { ColorField } from "./fields/ColorField";
-import { SelectField } from "./fields/SelectField";
-import { SpacingField } from "./fields/SpacingField";
-import { TextField } from "./fields/TextField";
-import { UrlField } from "./fields/UrlField";
+import { FieldRenderer } from "./fields/FieldRenderer";
 
 /**
  * Properties panel — schema-driven inspector for the selected block.
  *
- * Each section declares its editable props via a `SectionSchema`; we
- * dispatch on `field.kind` to a renderer in `./fields/`. Field changes
- * shallow-merge into the block's props bag and flow through
- * `replaceBlockProps` (no history push per keystroke) — same rationale
- * as the JSON textarea in P1.A.
- *
- * Field kinds not yet implemented (richtext, image, number, boolean,
- * list, group) render a "Field type not yet implemented" notice so the
- * inspector doesn't fail closed when a section schema uses one of them.
- * Segment 2 fills these in.
+ * Each section declares its editable props via a `SectionSchema`; the
+ * shared `FieldRenderer` dispatches on `field.kind` to a renderer in
+ * `./fields/`. Field changes shallow-merge into the block's props bag
+ * via `replaceBlockProps` (no history push per keystroke) — same
+ * rationale as the JSON textarea in P1.A.
  */
 
 function findBlock(blocks: Block[], id: string): Block | null {
@@ -71,7 +61,7 @@ export function Properties() {
       <div className="demeurer-properties-fields">
         {def ? (
           def.schema.fields.map((field) => (
-            <FieldRow
+            <FieldRenderer
               key={field.key}
               field={field}
               value={block.props[field.key]}
@@ -101,34 +91,4 @@ export function Properties() {
       </div>
     </div>
   );
-}
-
-interface FieldRowProps {
-  field: Field;
-  value: unknown;
-  onChange: (next: unknown) => void;
-}
-
-function FieldRow({ field, value, onChange }: FieldRowProps) {
-  switch (field.kind) {
-    case "text":
-      return <TextField field={field} value={value} onChange={onChange} />;
-    case "select":
-      return <SelectField field={field} value={value} onChange={onChange} />;
-    case "url":
-      return <UrlField field={field} value={value} onChange={onChange} />;
-    case "color":
-      return <ColorField field={field} value={value} onChange={onChange} />;
-    case "spacing":
-      return <SpacingField field={field} value={value} onChange={onChange} />;
-    default:
-      return (
-        <div className="demeurer-field-unimplemented">
-          <div className="demeurer-field-unimplemented-label">{field.label}</div>
-          <div className="demeurer-field-unimplemented-body">
-            Field type <code>{field.kind}</code> not yet implemented.
-          </div>
-        </div>
-      );
-  }
 }

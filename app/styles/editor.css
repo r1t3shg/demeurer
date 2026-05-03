@@ -521,3 +521,317 @@
   gap: 8px;
   flex-shrink: 0;
 }
+
+/* ===== Theme indicator ===== */
+
+.demeurer-theme-indicator {
+  font-size: 12px;
+  color: var(--p-color-text-secondary, #6d7175);
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--p-color-bg-surface-secondary, #f6f6f7);
+  white-space: nowrap;
+}
+
+/* ===== Field: richtext ===== */
+
+.demeurer-field-richtext {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.demeurer-field-richtext-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--p-color-text, #202223);
+}
+
+.demeurer-field-richtext-input {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px;
+  border: 1px solid var(--p-color-border, #c9cccf);
+  border-radius: 6px;
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* ===== Field: group ===== */
+
+.demeurer-field-group {
+  border: 1px solid var(--p-color-border, #e1e3e5);
+  border-radius: 6px;
+  background: var(--p-color-bg-surface, #ffffff);
+}
+
+.demeurer-field-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.demeurer-field-group-caret {
+  width: 12px;
+  font-size: 10px;
+  color: var(--p-color-text-secondary, #6d7175);
+}
+
+.demeurer-field-group-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.demeurer-field-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--p-color-border, #e1e3e5);
+}
+
+/* ===== Field: list ===== */
+
+.demeurer-field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.demeurer-field-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.demeurer-field-list-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.demeurer-field-list-count {
+  font-size: 12px;
+  color: var(--p-color-text-secondary, #6d7175);
+}
+
+.demeurer-field-list-empty {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--p-color-text-secondary, #6d7175);
+  background: var(--p-color-bg-surface-secondary, #f6f6f7);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.demeurer-field-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.demeurer-field-list-item {
+  border: 1px solid var(--p-color-border, #e1e3e5);
+  border-radius: 6px;
+  background: var(--p-color-bg-surface, #ffffff);
+}
+
+.demeurer-field-list-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.demeurer-field-list-handle {
+  cursor: grab;
+  background: transparent;
+  border: none;
+  padding: 4px;
+  font-size: 14px;
+  color: var(--p-color-text-secondary, #6d7175);
+  user-select: none;
+  touch-action: none;
+}
+
+.demeurer-field-list-handle:active {
+  cursor: grabbing;
+}
+
+.demeurer-field-list-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  min-width: 0;
+}
+
+.demeurer-field-list-caret {
+  width: 12px;
+  font-size: 10px;
+  color: var(--p-color-text-secondary, #6d7175);
+}
+
+.demeurer-field-list-summary {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.demeurer-field-list-remove {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 16px;
+  color: var(--p-color-text-secondary, #6d7175);
+  border-radius: 4px;
+}
+
+.demeurer-field-list-remove:hover {
+  background: var(--p-color-bg-surface-critical-subdued, #fff0f0);
+  color: var(--p-color-text-critical, #d72c0d);
+}
+
+.demeurer-field-list-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--p-color-border, #e1e3e5);
+}
+
+/* ===== Field: image ===== */
+
+.demeurer-field-image {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.demeurer-field-image-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.demeurer-field-image-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.demeurer-field-image-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--p-color-border, #e1e3e5);
+  background: var(--p-color-bg-surface-secondary, #f6f6f7);
+}
+
+.demeurer-field-image-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.demeurer-field-image-error {
+  font-size: 12px;
+  color: var(--p-color-text-critical, #d72c0d);
+}
+
+/* ===== Field: url ===== */
+
+.demeurer-field-url {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.demeurer-field-url-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  align-self: flex-start;
+}
+
+.demeurer-field-url-badge-internal {
+  background: #d4f5dd;
+  color: #117a35;
+}
+
+.demeurer-field-url-badge-external {
+  background: #ececec;
+  color: #555;
+}
+
+.demeurer-field-url-badge-invalid {
+  background: #ffe0e0;
+  color: #b3261e;
+}
+
+/* ===== Field: color ===== */
+
+.demeurer-field-color-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.demeurer-field-color-swatch {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--p-color-border, #c9cccf);
+  border-radius: 6px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.demeurer-field-color-theme {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.demeurer-field-color-theme-label {
+  font-size: 12px;
+  color: var(--p-color-text-secondary, #6d7175);
+}
+
+.demeurer-field-color-theme-swatches {
+  display: flex;
+  gap: 4px;
+}
+
+.demeurer-field-color-theme-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid var(--p-color-border, #e1e3e5);
+  cursor: pointer;
+  padding: 0;
+}
+
+.demeurer-field-color-reset {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: var(--p-color-text-link, #2c6ecb);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 0;
+  text-decoration: underline;
+}

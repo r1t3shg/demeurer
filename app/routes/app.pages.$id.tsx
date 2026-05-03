@@ -7,6 +7,7 @@ import { SaveIndicator } from "../components/SaveIndicator";
 import { Canvas } from "../components/editor/Canvas";
 import { Outline } from "../components/editor/Outline";
 import { Properties } from "../components/editor/Properties";
+import { ThemeTokensContext } from "../components/editor/ThemeTokensContext";
 import {
   VersionHistory,
   type VersionRecord,
@@ -16,11 +17,13 @@ import { useDraftInspection, useDraftMirror } from "../lib/editor/recovery";
 import { useEditorStore } from "../lib/editor/store";
 import type { Block, EditorDocument } from "../lib/editor/types";
 import { useAutosave } from "../lib/editor/useAutosave";
-import { getShopFromRequest } from "../lib/shop.server";
+import { authenticate } from "../shopify.server";
+import { getThemeTokens } from "../lib/theme/tokens.server";
 import "../styles/editor.css";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
-  const shop = await getShopFromRequest(request);
+  const { admin, session } = await authenticate.admin(request);
+  const shop = session.shop;
 
   const id = params.id;
   if (!id) {
@@ -47,6 +50,10 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     throw new Response("Not found", { status: 404 });
   }
 
+  // Theme tokens for the canvas preview. Never throws — defaults are
+  // returned on error so a broken theme fetch doesn't break the editor.
+  const theme = await getThemeTokens(admin, shop);
+
   return {
     page: {
       id: page.id,
@@ -59,11 +66,12 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       createdAt: page.createdAt.toISOString(),
       updatedAt: page.updatedAt.toISOString(),
     },
+    theme,
   };
 };
 
 export default function PageEditor() {
-  const { page } = useLoaderData<typeof loader>();
+  const { page, theme } = useLoaderData<typeof loader>();
 
   const isDirty = useEditorStore((s) => s.isDirty);
   const historyCursor = useEditorStore((s) => s.historyCursor);
@@ -213,6 +221,7 @@ export default function PageEditor() {
   };
 
   return (
+    <ThemeTokensContext.Provider value={theme.tokens}>
     <s-page heading={page.title}>
       <s-button slot="primary-action" href="/app">
         Back to pages
@@ -224,6 +233,9 @@ export default function PageEditor() {
           lastSavedAt={lastSavedAt}
           isDirty={isDirty}
         />
+        <span className="demeurer-theme-indicator" title="Canvas tokens are read from this theme.">
+          Theme: {theme.themeName ?? "—"}
+        </span>
         <s-button
           onClick={() => undo()}
           {...(canUndo ? {} : { disabled: true })}
@@ -264,6 +276,7 @@ export default function PageEditor() {
       <div className="demeurer-editor-grid">
         <Outline />
         <Canvas
+          themeTokens={theme.tokens}
           previewDocument={previewDoc ?? undefined}
           banner={
             previewDoc && previewVersion ? (
@@ -291,6 +304,7 @@ export default function PageEditor() {
         previewVersionId={previewVersion?.id ?? null}
       />
     </s-page>
+    </ThemeTokensContext.Provider>
   );
 }
 

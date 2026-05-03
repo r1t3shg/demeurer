@@ -9,6 +9,7 @@
  * roughly right?" feedback; the published page is what matters.
  */
 
+import { sanitizeRichText } from "../../sanitize";
 import type { SectionRenderProps } from "../types";
 import { coerceHeroProps } from "./schema";
 
@@ -102,13 +103,13 @@ export function HeroRender({ props, themeTokens }: SectionRenderProps) {
       <div style={contentStyle}>
         <h1 style={headingStyle}>{p.heading}</h1>
         {p.subheading ? (
-          // The richtext field stores small HTML fragments from a future
-          // rich-text editor; for the canvas preview we render it raw.
-          // Server-side sanitization happens in `toLiquid`.
+          // Canvas-side allowlist sanitization (P/STRONG/EM/A/BR with safe
+          // hrefs). The published Liquid output gets its own sanitization
+          // pass in toLiquid.
           <div
             style={subheadingStyle}
             // eslint-disable-next-line react/no-danger
-            dangerouslySetInnerHTML={{ __html: p.subheading }}
+            dangerouslySetInnerHTML={{ __html: sanitizeRichText(p.subheading) }}
           />
         ) : null}
         {p.ctaLabel ? (

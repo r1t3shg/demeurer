@@ -1,32 +1,17 @@
-// Canvas — placeholder, P1.B segment 1.
+// Canvas — renders each block via its section definition's <Render>
+// with the merchant's live theme tokens (colors, fonts) so the preview
+// roughly matches the published storefront.
 //
-// Renders each block by looking up its section definition in the registry
-// and calling its <Render> component with current props + theme tokens.
 // Click a section to select it; clicking empty space clears selection.
-//
-// Theme tokens are stubbed for now. Segment 3 swaps this for the iframe
-// theme preview, at which point real tokens flow in from the storefront.
 
 import { getSection } from "../../lib/sections";
 import type { ThemeTokens } from "../../lib/sections";
 import { useEditorStore } from "../../lib/editor/store";
 import type { Block, EditorDocument } from "../../lib/editor/types";
 
-const STUB_TOKENS: ThemeTokens = {
-  colors: {
-    background: "#ffffff",
-    text: "#1a1a1a",
-    accent: "#1a73e8",
-  },
-  typography: {
-    headingFont: "Georgia, serif",
-    bodyFont: "system-ui, -apple-system, sans-serif",
-    scale: 1,
-  },
-  spacing: { unit: 8 },
-};
-
 export interface CanvasProps {
+  /** Live theme tokens from `getThemeTokens()`. */
+  themeTokens: ThemeTokens;
   /**
    * If provided, the canvas renders this document instead of the live
    * store. Used by the version-history preview path. When set, the
@@ -37,7 +22,7 @@ export interface CanvasProps {
   banner?: React.ReactNode;
 }
 
-export function Canvas({ previewDocument, banner }: CanvasProps) {
+export function Canvas({ themeTokens, previewDocument, banner }: CanvasProps) {
   const liveBlocks = useEditorStore((s) => s.document.blocks);
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const selectBlock = useEditorStore((s) => s.selectBlock);
@@ -77,6 +62,7 @@ export function Canvas({ previewDocument, banner }: CanvasProps) {
             <SectionFrame
               key={block.id}
               block={block}
+              themeTokens={themeTokens}
               isSelected={!isPreview && selectedBlockId === block.id}
               onSelect={isPreview ? undefined : () => selectBlock(block.id)}
             />
@@ -89,6 +75,7 @@ export function Canvas({ previewDocument, banner }: CanvasProps) {
 
 interface SectionFrameProps {
   block: Block;
+  themeTokens: ThemeTokens;
   isSelected: boolean;
   /** Omit to render the section as non-interactive (preview mode). */
   onSelect?: () => void;
@@ -99,7 +86,7 @@ interface SectionFrameProps {
  * hover/select) and click handling. The section's own markup goes
  * inside, untouched.
  */
-function SectionFrame({ block, isSelected, onSelect }: SectionFrameProps) {
+function SectionFrame({ block, themeTokens, isSelected, onSelect }: SectionFrameProps) {
   const interactive = !!onSelect;
   const def = getSection(block.type);
 
@@ -143,7 +130,7 @@ function SectionFrame({ block, isSelected, onSelect }: SectionFrameProps) {
           : undefined
       }
     >
-      <Render props={block.props} themeTokens={STUB_TOKENS} />
+      <Render props={block.props} themeTokens={themeTokens} />
     </div>
   );
 }
