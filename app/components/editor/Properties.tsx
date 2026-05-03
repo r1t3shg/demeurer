@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useEditorStore } from "../../lib/editor/store";
 import { setProp } from "../../lib/editor/mutations";
 import { resolveProps } from "../../lib/editor/resolve";
-import type { Block } from "../../lib/editor/types";
+import type { Block, Breakpoint } from "../../lib/editor/types";
 import { getSection } from "../../lib/sections";
 import type { SectionQualityIssue } from "../../lib/sections/types";
 import { FieldRenderer } from "./fields/FieldRenderer";
@@ -29,6 +29,33 @@ function findBlock(blocks: Block[], id: string): Block | null {
     if (inChild) return inChild;
   }
   return null;
+}
+
+/**
+ * Informational strip above the field list. Tells the merchant whether
+ * their next edit will mutate the canonical mobile layer (and therefore
+ * apply at every breakpoint) or create a per-breakpoint override.
+ *
+ * Today this is purely advisory — `handleFieldChange` already routes
+ * writes correctly. Segment 3 will add the override badges, the
+ * "Apply to all breakpoints" prompt, and the per-field reset UI hinted
+ * at by the wording here.
+ */
+function BreakpointAdvisory({ breakpoint }: { breakpoint: Breakpoint }) {
+  const message =
+    breakpoint === "mobile"
+      ? "All edits apply to all breakpoints."
+      : breakpoint === "tablet"
+        ? "Edits will create tablet overrides — confirmation prompt will ask each time."
+        : "Edits will create desktop overrides — confirmation prompt will ask each time.";
+  return (
+    <div
+      className={`demeurer-properties-advisory demeurer-properties-advisory--${breakpoint}`}
+      role="note"
+    >
+      {message}
+    </div>
+  );
 }
 
 export function Properties() {
@@ -121,6 +148,7 @@ export function Properties() {
   return (
     <div className="demeurer-editor-pane demeurer-properties">
       <div className="demeurer-pane-header">Properties</div>
+      <BreakpointAdvisory breakpoint={activeBreakpoint} />
       <div className="demeurer-properties-meta">
         <div className="demeurer-properties-type">{def?.label ?? block.type}</div>
         <div className="demeurer-properties-id">

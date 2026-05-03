@@ -15,6 +15,31 @@
   margin-bottom: 12px;
 }
 
+.demeurer-toolbar-spacer {
+  flex: 1;
+}
+
+/* Breakpoint switcher — title-bar slot vs. stacked-row slot. The grid
+ * layout flips at 1024px (see below); we hide whichever slot doesn't
+ * apply so exactly one switcher is visible at a time. */
+.demeurer-editor-toolbar__bp-slot {
+  display: inline-flex;
+}
+
+.demeurer-editor-bp-row {
+  display: none;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1023px) {
+  .demeurer-editor-toolbar__bp-slot {
+    display: none;
+  }
+  .demeurer-editor-bp-row {
+    display: block;
+  }
+}
+
 .demeurer-editor-grid {
   display: grid;
   grid-template-columns: 260px 1fr 320px;
@@ -58,6 +83,14 @@
  * `demeurer-editor-pane` (shared frame) and a per-pane class. We avoid
  * CSS Modules `composes:` to stay in plain-CSS land — Vite imports this
  * as a global stylesheet. */
+
+.demeurer-outline-bp-line {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--p-color-text-secondary, #6d7175);
+  border-bottom: 1px solid var(--p-color-border-subdued, #ebeef0);
+  background: var(--p-color-bg-surface, #ffffff);
+}
 
 .demeurer-outline-list {
   flex: 1;
@@ -270,18 +303,10 @@
   padding: 24px;
 }
 
-/* Iframe path: toolbar (sticky top, no scroll) + stage (scrolls) + the
- * frame-wrap that centers/constrains the iframe per viewport. */
-.demeurer-canvas-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--p-color-border, #e1e3e5);
-  background: var(--p-color-bg-surface, #ffffff);
-  flex-shrink: 0;
-}
-
+/* Iframe path: stage (scrolls) + the frame-wrap that centers/constrains
+ * the iframe per breakpoint. The dedicated viewport toolbar from earlier
+ * iterations was retired in P1.C segment 2 — viewport selection now
+ * lives in the title-bar BreakpointSwitcher. */
 .demeurer-canvas-stage {
   flex: 1;
   overflow: auto;
@@ -289,6 +314,19 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  transition: background-color 200ms ease;
+}
+
+/* Mobile/tablet: the canvas stage shows a darker backdrop around the
+ * centered iframe. Suggests "this is the editor, not a real device"
+ * and helps the simulated frame stand out from the surrounding chrome. */
+.demeurer-canvas--device .demeurer-canvas-stage {
+  background: var(--p-color-bg-surface-tertiary, #e3e5e7);
+}
+
+/* Desktop: full-width preview, no backdrop variation. */
+.demeurer-canvas--desk .demeurer-canvas-stage {
+  background: var(--p-color-bg-surface-secondary, #f1f2f3);
 }
 
 .demeurer-canvas-frame-wrap {
@@ -303,7 +341,9 @@
   /* Min height so the iframe always has somewhere to render even if
    * the page is empty. */
   min-height: 480px;
-  transition: max-width 160ms ease;
+  /* Smooth width animation on breakpoint switches — purely cosmetic,
+   * but tells the user the viewport changed. */
+  transition: max-width 200ms ease;
 }
 
 .demeurer-canvas-iframe {
@@ -347,9 +387,9 @@
   max-width: 360px;
 }
 
-/* Viewport toggle (Desktop / Tablet / Mobile) */
+/* Breakpoint switcher (Mobile / Tablet / Desktop) — segmented control. */
 
-.demeurer-viewport-toggle {
+.demeurer-bp-switcher {
   display: inline-flex;
   border: 1px solid var(--p-color-border, #e1e3e5);
   border-radius: 6px;
@@ -357,28 +397,49 @@
   background: var(--p-color-bg-surface, #ffffff);
 }
 
-.demeurer-viewport-toggle-btn {
+.demeurer-bp-switcher--fullwidth {
+  display: flex;
+  width: 100%;
+}
+
+.demeurer-bp-switcher__segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: 0;
   padding: 6px 12px;
+  font: inherit;
   font-size: 12px;
   font-weight: 500;
   color: var(--p-color-text-secondary, #6d7175);
   cursor: pointer;
   border-right: 1px solid var(--p-color-border, #e1e3e5);
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
-.demeurer-viewport-toggle-btn:last-child {
+.demeurer-bp-switcher--fullwidth .demeurer-bp-switcher__segment {
+  flex: 1;
+  justify-content: center;
+}
+
+.demeurer-bp-switcher__segment:last-child {
   border-right: 0;
 }
 
-.demeurer-viewport-toggle-btn:hover {
+.demeurer-bp-switcher__segment:hover {
   background: var(--p-color-bg-surface-hover, #f1f2f3);
 }
 
-.demeurer-viewport-toggle-btn.is-active {
-  background: var(--p-color-bg-surface-selected, #ebf3ff);
-  color: var(--p-color-text-emphasis, #005bd3);
+.demeurer-bp-switcher__segment.is-active {
+  background: var(--p-color-bg-fill-brand, #005bd3);
+  color: #ffffff;
+}
+
+.demeurer-bp-switcher__width {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .demeurer-canvas-page {
@@ -466,6 +527,29 @@
   text-align: center;
   font-size: 13px;
   color: var(--p-color-text-secondary, #6d7175);
+}
+
+/* Breakpoint advisory strip — see BreakpointAdvisory in Properties.tsx.
+ * Mobile is calm/neutral; tablet/desktop signal "this will create an
+ * override" with a warmer accent so the merchant notices before they
+ * type. */
+.demeurer-properties-advisory {
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  border-bottom: 1px solid var(--p-color-border-subdued, #ebeef0);
+}
+
+.demeurer-properties-advisory--mobile {
+  background: var(--p-color-bg-surface-secondary, #f6f6f7);
+  color: var(--p-color-text-secondary, #6d7175);
+}
+
+.demeurer-properties-advisory--tablet,
+.demeurer-properties-advisory--desktop {
+  background: rgba(176, 110, 0, 0.08);
+  color: #7a4d00;
+  border-bottom-color: rgba(176, 110, 0, 0.2);
 }
 
 .demeurer-properties-meta {

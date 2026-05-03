@@ -25,17 +25,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getSection } from "../../lib/sections";
 import type { ThemeTokens } from "../../lib/sections";
+import { BREAKPOINT_META } from "../../lib/editor/breakpoints";
 import { resolveProps } from "../../lib/editor/resolve";
 import { useEditorStore } from "../../lib/editor/store";
 import type { Block, Breakpoint, EditorDocument } from "../../lib/editor/types";
 
-type Viewport = "desktop" | "tablet" | "mobile";
-
-const VIEWPORT_MAX_WIDTH: Record<Viewport, number | null> = {
-  desktop: null,
-  tablet: 768,
-  mobile: 390,
-};
+/**
+ * Skeleton-loader debounce. Fast breakpoint switches that complete
+ * within this window never flash the spinner — they swap one rendered
+ * iframe for another with no intermediate "loading" UI. Slower loads
+ * (cold paint, network blip) still show the skeleton normally.
+ */
+const SKELETON_DELAY_MS = 100;
 
 interface PreviewMessage {
   type: string;
@@ -117,10 +118,21 @@ function IframeCanvas({ pageId, previewQuery, banner }: IframeCanvasProps) {
     "loading",
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [viewport, setViewport] = useState<Viewport>("desktop");
   // Stable token that we bump only when we want to force-reload (e.g.
   // user clicks Retry).
   const [retryNonce, setRetryNonce] = useState(0);
+  // Whether the loading overlay is actually visible — gates the spinner
+  // behind a 100 ms debounce so quick reloads (e.g. tapping through the
+  // breakpoint switcher) don't flash a skeleton.
+  const [showSkeleton, setShowSkeleton] = useState(false);
+  useEffect(() => {
+    if (loadStatus !== "loading") {
+      setShowSkeleton(false);
+      return;
+    }
+    const t = window.setTimeout(() => setShowSkeleton(true), SKELETON_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [loadStatus]);
 
   const previewSrc = useMemo(() => {
     return `/preview/${encodeURIComponent(pageId)}?${previewQuery}&v=${cacheKey}&r=${retryNonce}&bp=${activeBreakpoint}`;
@@ -213,18 +225,21 @@ function IframeCanvas({ pageId, previewQuery, banner }: IframeCanvasProps) {
     setRetryNonce((n) => n + 1);
   };
 
-  const maxWidth = VIEWPORT_MAX_WIDTH[viewport];
+  const meta = BREAKPOINT_META[activeBreakpoint];
 
   return (
-    <div className="demeurer-editor-pane demeurer-canvas">
+    <div
+      className={
+        "demeurer-editor-pane demeurer-canvas" +
+        (meta.centered ? " demeurer-canvas--device" : " demeurer-canvas--desk")
+      }
+      data-bp={activeBreakpoint}
+    >
       {banner ? <div className="demeurer-canvas-banner">{banner}</div> : null}
-      <div className="demeurer-canvas-toolbar">
-        <ViewportToggle value={viewport} onChange={setViewport} />
-      </div>
       <div className="demeurer-canvas-stage">
         <div
           className="demeurer-canvas-frame-wrap"
-          style={maxWidth ? { maxWidth } : undefined}
+          style={{ maxWidth: meta.editorMaxWidth }}
         >
           <iframe
             ref={iframeRef}
@@ -234,7 +249,7 @@ function IframeCanvas({ pageId, previewQuery, banner }: IframeCanvasProps) {
             className="demeurer-canvas-iframe"
             onError={handleIframeError}
           />
-          {loadStatus === "loading" ? (
+          {loadStatus === "loading" && showSkeleton ? (
             <div className="demeurer-canvas-loading" aria-live="polite">
               <s-spinner accessibilityLabel="Loading preview" size="large" />
             </div>
@@ -248,40 +263,6 @@ function IframeCanvas({ pageId, previewQuery, banner }: IframeCanvasProps) {
           ) : null}
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ----------------------------- Viewport toggle ---------------------------- */
-
-interface ViewportToggleProps {
-  value: Viewport;
-  onChange: (v: Viewport) => void;
-}
-
-const VIEWPORTS: { value: Viewport; label: string }[] = [
-  { value: "desktop", label: "Desktop" },
-  { value: "tablet", label: "Tablet" },
-  { value: "mobile", label: "Mobile" },
-];
-
-function ViewportToggle({ value, onChange }: ViewportToggleProps) {
-  return (
-    <div role="group" aria-label="Preview viewport" className="demeurer-viewport-toggle">
-      {VIEWPORTS.map((v) => (
-        <button
-          key={v.value}
-          type="button"
-          aria-pressed={value === v.value}
-          className={
-            "demeurer-viewport-toggle-btn" +
-            (value === v.value ? " is-active" : "")
-          }
-          onClick={() => onChange(v.value)}
-        >
-          {v.label}
-        </button>
-      ))}
     </div>
   );
 }

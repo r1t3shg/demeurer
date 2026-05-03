@@ -14,6 +14,7 @@ import { CSS } from "@dnd-kit/utilities";
 import * as LucideIcons from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { BREAKPOINT_META } from "../../lib/editor/breakpoints";
 import { handleOutlineDragEnd } from "../../lib/editor/dnd";
 import { newBlockId } from "../../lib/editor/ids";
 import { useEditorStore } from "../../lib/editor/store";
@@ -61,6 +62,7 @@ export function Outline() {
   const selectBlock = useEditorStore((s) => s.selectBlock);
   const addBlock = useEditorStore((s) => s.addBlock);
   const removeBlock = useEditorStore((s) => s.removeBlock);
+  const activeBreakpoint = useEditorStore((s) => s.activeBreakpoint);
 
   // PointerSensor with a 5px activation distance lets a click on the
   // drag handle still register as a click (e.g. for keyboard focus)
@@ -74,6 +76,9 @@ export function Outline() {
   return (
     <div className="demeurer-editor-pane demeurer-outline">
       <div className="demeurer-pane-header">Outline</div>
+      <div className="demeurer-outline-bp-line">
+        Editing: {BREAKPOINT_META[activeBreakpoint].label}
+      </div>
       <div className="demeurer-outline-list">
         {blocks.length === 0 ? (
           <div className="demeurer-outline-empty">

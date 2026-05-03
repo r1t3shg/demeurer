@@ -4,9 +4,11 @@ import { useLoaderData, useSearchParams } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
 import { SaveIndicator } from "../components/SaveIndicator";
+import { BreakpointSwitcher } from "../components/editor/BreakpointSwitcher";
 import { Canvas } from "../components/editor/Canvas";
 import { Outline } from "../components/editor/Outline";
 import { Properties } from "../components/editor/Properties";
+import { BREAKPOINT_ORDER } from "../lib/editor/breakpoints";
 import { ThemeTokensContext } from "../components/editor/ThemeTokensContext";
 import {
   VersionHistory,
@@ -95,6 +97,7 @@ export default function PageEditor() {
   const selectBlock = useEditorStore((s) => s.selectBlock);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
+  const setActiveBreakpoint = useEditorStore((s) => s.setActiveBreakpoint);
 
   const { saveStatus, lastSavedAt } = useAutosave(page.id);
   const { status: recovery, dismiss: dismissRecovery } = useDraftInspection(
@@ -174,11 +177,19 @@ export default function PageEditor() {
       } else if ((key === "z" && e.shiftKey) || key === "y") {
         e.preventDefault();
         redo();
+      } else if (!e.shiftKey && !e.altKey) {
+        // Cmd/Ctrl+1/2/3 → switch breakpoint. Same input/textarea
+        // skip applies; the listener already short-circuited above.
+        const idx = ["1", "2", "3"].indexOf(e.key);
+        if (idx !== -1) {
+          e.preventDefault();
+          setActiveBreakpoint(BREAKPOINT_ORDER[idx]);
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+  }, [undo, redo, setActiveBreakpoint]);
 
   const canUndo = historyCursor > 0;
   const canRedo = futureLength > 0;
@@ -241,14 +252,9 @@ export default function PageEditor() {
       </s-button>
 
       <div className="demeurer-editor-toolbar">
-        <SaveIndicator
-          saveStatus={saveStatus}
-          lastSavedAt={lastSavedAt}
-          isDirty={isDirty}
-        />
-        <span className="demeurer-theme-indicator" title="Canvas tokens are read from this theme.">
-          Theme: {theme.themeName ?? "—"}
-        </span>
+        <div className="demeurer-editor-toolbar__bp-slot">
+          <BreakpointSwitcher />
+        </div>
         <s-button
           onClick={() => undo()}
           {...(canUndo ? {} : { disabled: true })}
@@ -262,11 +268,29 @@ export default function PageEditor() {
           Redo
         </s-button>
         <s-button onClick={() => setHistoryOpen(true)}>History</s-button>
+        <span className="demeurer-toolbar-spacer" />
+        <span className="demeurer-theme-indicator" title="Canvas tokens are read from this theme.">
+          Theme: {theme.themeName ?? "—"}
+        </span>
+        <SaveIndicator
+          saveStatus={saveStatus}
+          lastSavedAt={lastSavedAt}
+          isDirty={isDirty}
+        />
         {isDev ? (
           <s-button tone="critical" onClick={simulateCrash}>
             Simulate crash (dev)
           </s-button>
         ) : null}
+      </div>
+
+      {/*
+        Stacked-layout switcher: shown only when the editor grid stacks
+        vertically (<1024px). The CSS hides the toolbar slot at the same
+        breakpoint, so exactly one switcher is visible at a time.
+      */}
+      <div className="demeurer-editor-bp-row">
+        <BreakpointSwitcher fullWidth />
       </div>
 
       {recovery.kind === "recoverable" && !recoveryDecided ? (

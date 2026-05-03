@@ -43,7 +43,7 @@ import { emptyDocument, migrateDocument, wrapMobileProps } from "./types.ts";
  *    section authors who write `{ ...defaults }` Just Work.
  */
 
-const ACTIVE_BREAKPOINT_KEY = "demeurer:activeBreakpoint";
+const ACTIVE_BREAKPOINT_KEY = "demeurer:editor:activeBreakpoint";
 const DEFAULT_BREAKPOINT: Breakpoint = "mobile";
 
 function loadStoredBreakpoint(): Breakpoint {
