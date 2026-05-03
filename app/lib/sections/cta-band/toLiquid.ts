@@ -9,16 +9,24 @@
  */
 
 import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext } from "../types";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
 import { liquidString } from "../_shared/coerce";
+import {
+  emitResponsiveCSS,
+  emitVisibilityCSS,
+  scopeClass,
+  textAlignLogical,
+  wrapStyle,
+  type CssPropMap,
+} from "../_shared/responsive-css";
 import { coerceCtaBandProps, ctaBandDefaults } from "./schema";
 
 export function ctaBandToLiquid(
   propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
   const props = coerceCtaBandProps(propsByBreakpoint.mobile);
+  const scope = scopeClass(ctx.sectionType, ctx.blockId);
 
   const schema = {
     name: "CTA band",
@@ -54,6 +62,31 @@ export function ctaBandToLiquid(
     presets: [{ name: "CTA band" }],
   };
 
+  const propMap: CssPropMap[] = [
+    {
+      propKey: "padding",
+      cssProperty: "padding",
+      toCss: (v) => {
+        const p = v as SpacingValue;
+        return `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`;
+      },
+    },
+    {
+      propKey: "alignment",
+      cssProperty: "text-align",
+      toCss: textAlignLogical,
+    },
+    {
+      propKey: "background",
+      cssProperty: "background",
+      toCss: (v) => (typeof v === "string" ? v : ctaBandDefaults.background),
+    },
+  ];
+
+  const overrideCss = emitResponsiveCSS(scope, propsByBreakpoint, propMap);
+  const visibilityCss = emitVisibilityCSS(scope, propsByBreakpoint);
+  const styleBlock = wrapStyle([overrideCss, visibilityCss].filter(Boolean).join("\n"));
+
   // Liquid auto-contrast: parse the hex into r/g/b and apply Rec. 709
   // luma — same formula as the canvas. Liquid has no `color_brightness`
   // filter on every theme, so we hand-roll it with `color_extract`,
@@ -79,8 +112,9 @@ export function ctaBandToLiquid(
   endif
 -%}
 
+${styleBlock}
 <div
-  class="demeurer-cta-band demeurer-cta-band--{{ section.settings.alignment }}"
+  class="${scope} demeurer-cta-band demeurer-cta-band--{{ section.settings.alignment }}"
   style="
     background: {{ bg }};
     color: {{ text_color }};

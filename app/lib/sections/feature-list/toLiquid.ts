@@ -13,8 +13,16 @@
  */
 
 import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext } from "../types";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
 import { liquidString } from "../_shared/coerce";
+import {
+  emitResponsiveCSS,
+  emitVisibilityCSS,
+  scopeClass,
+  textAlignLogical,
+  wrapStyle,
+  type CssPropMap,
+} from "../_shared/responsive-css";
 import { FEATURE_ICONS, coerceFeatureListProps, featureListDefaults } from "./schema";
 
 /**
@@ -56,8 +64,8 @@ export function featureListToLiquid(
   propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
   const props = coerceFeatureListProps(propsByBreakpoint.mobile);
+  const scope = scopeClass(ctx.sectionType, ctx.blockId);
 
   const iconOptions = FEATURE_ICONS.map((v) => ({ value: v, label: v }));
 
@@ -123,6 +131,30 @@ export function featureListToLiquid(
     ],
   };
 
+  // Layout (column count) is intentionally non-responsive — changing
+  // grid-template-columns per breakpoint would target an inner element,
+  // which the shared CSS helper does not scope to. The grid remains
+  // mobile-first; see docs/sections.md for the rationale.
+  const propMap: CssPropMap[] = [
+    {
+      propKey: "padding",
+      cssProperty: "padding",
+      toCss: (v) => {
+        const p = v as SpacingValue;
+        return `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`;
+      },
+    },
+    {
+      propKey: "alignment",
+      cssProperty: "text-align",
+      toCss: textAlignLogical,
+    },
+  ];
+
+  const overrideCss = emitResponsiveCSS(scope, propsByBreakpoint, propMap);
+  const visibilityCss = emitVisibilityCSS(scope, propsByBreakpoint);
+  const styleBlock = wrapStyle([overrideCss, visibilityCss].filter(Boolean).join("\n"));
+
   const colsLiquid = `
 {%- liquid
   case section.settings.layout
@@ -144,9 +176,10 @@ export function featureListToLiquid(
 -%}`.trim();
 
   const template = `
+${styleBlock}
 ${colsLiquid}
 <div
-  class="demeurer-feature-list demeurer-feature-list--{{ section.settings.alignment }}"
+  class="${scope} demeurer-feature-list demeurer-feature-list--{{ section.settings.alignment }}"
   style="
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
     text-align: {{ text_align_logical }};

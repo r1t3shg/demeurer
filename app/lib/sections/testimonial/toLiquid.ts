@@ -12,15 +12,22 @@
  */
 
 import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext } from "../types";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import {
+  emitResponsiveCSS,
+  emitVisibilityCSS,
+  scopeClass,
+  wrapStyle,
+  type CssPropMap,
+} from "../_shared/responsive-css";
 import { coerceTestimonialProps, testimonialDefaults } from "./schema";
 
 export function testimonialToLiquid(
   propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
   const props = coerceTestimonialProps(propsByBreakpoint.mobile);
+  const scope = scopeClass(ctx.sectionType, ctx.blockId);
 
   const schema = {
     name: "Testimonials",
@@ -81,8 +88,24 @@ export function testimonialToLiquid(
     ],
   };
 
+  const propMap: CssPropMap[] = [
+    {
+      propKey: "padding",
+      cssProperty: "padding",
+      toCss: (v) => {
+        const p = v as SpacingValue;
+        return `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`;
+      },
+    },
+  ];
+
+  const overrideCss = emitResponsiveCSS(scope, propsByBreakpoint, propMap);
+  const visibilityCss = emitVisibilityCSS(scope, propsByBreakpoint);
+  const styleBlock = wrapStyle([overrideCss, visibilityCss].filter(Boolean).join("\n"));
+
   // Single layout container vs carousel/grid — switch via Liquid.
   const template = `
+${styleBlock}
 {%- liquid
   assign layout = section.settings.layout
   assign is_carousel = false
@@ -92,7 +115,7 @@ export function testimonialToLiquid(
 -%}
 
 <div
-  class="demeurer-testimonial demeurer-testimonial--{{ layout }}"
+  class="${scope} demeurer-testimonial demeurer-testimonial--{{ layout }}"
   style="
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
   "

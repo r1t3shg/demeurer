@@ -1,6 +1,141 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), and the section library (P1.B), and what comes next.
+A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), the section library (P1.B), the responsive design layer (P1.C), and what comes next.
+
+---
+
+## P1.C — Responsive design layer ✅ COMPLETE 2026-05-03
+
+Merchants can now author per-breakpoint overrides on every editable
+field of every section. Three fixed breakpoints, mobile-first cascade,
+pure CSS media queries — zero JavaScript injection on the storefront.
+
+### Three breakpoints, no fluid scales
+
+- **Mobile** — base layer; canonical values; always present.
+- **Tablet** — `min-width: 768px`; sparse override layer.
+- **Desktop** — `min-width: 1280px`; sparse override layer.
+
+Container queries / fluid scales / arbitrary user breakpoints are
+**explicitly out of scope**. Three is what merchants understand; three
+is what we ship. If a section needs a fourth, the helpers won't accept it.
+
+### Mobile-first cascade
+
+Every prop resolves at any breakpoint via cascade: tablet falls through
+to mobile if absent; desktop falls through to tablet, then mobile. The
+editor stores only the layer the merchant edited — no value duplication.
+
+`PropsByBreakpoint` (in `app/lib/editor/types.ts`):
+
+```ts
+{ mobile: Record<string, unknown>;
+  tablet?: Record<string, unknown>;
+  desktop?: Record<string, unknown>; }
+```
+
+`resolveProp` / `resolveProps` (in `app/lib/editor/resolve.ts`) walk
+the cascade and return the active value plus its source layer.
+
+### Source badges in the inspector
+
+When the merchant is editing at tablet or desktop, every field shows
+a small badge: "From mobile" / "Tablet override" / "Desktop override".
+Editing a field at a non-mobile breakpoint writes only to that layer
+and surfaces an inline "Apply to all breakpoints" affordance to clear
+the override.
+
+### Pure CSS responsive output (no JS)
+
+Every section's `toLiquid` now uses the helpers in
+`app/lib/sections/_shared/responsive-css.ts` to emit a `{% style %}`
+block with `@media` rules for tablet/desktop overrides. The block is
+scoped to a unique class `demeurer-<type>-<blockId>` so per-block
+overrides don't leak across the page.
+
+- Mobile values render via inline `style="…"` driven by Liquid
+  `section.settings.*` so theme-editor edits stay live for mobile.
+- Tablet/desktop overrides bake compile-time and use `!important` to
+  win specificity against the inline mobile styles.
+- A freshly-built page (no overrides) emits NO `{% style %}` block
+  and NO `@media` rules — verified by the unit tests.
+- The published Liquid is indistinguishable from a hand-written
+  Shopify section. Architectural commitment #2 holds.
+
+### Visibility per breakpoint
+
+`_visibility: false` at any breakpoint hides the section there.
+`emitVisibilityCSS` is cascade-aware: it emits a `display: none` rule
+only at the breakpoint where visibility CHANGES, never redundantly.
+`display: revert !important` at a breakpoint where visibility flips
+back from hidden to visible.
+
+### Structural / non-responsive fields
+
+Fields whose semantics break per-device are flagged
+`responsive: false` in the schema. The inspector renders them
+read-only at tablet/desktop with a "Same on all breakpoints" badge.
+
+| Section | Non-responsive fields |
+|---|---|
+| Form | `formType`, `fields[]` |
+| Custom HTML | `html`, `notes` |
+| Spacer | `showDivider`, `dividerColor`, `dividerWidth` |
+
+(Layout-changing select fields like Feature list `layout`, Testimonial
+`layout`, Logo wall `layout`, Video `aspectRatio` are also de-facto
+non-responsive — their CSS targets inner elements that the shared
+helper does not scope to. See `docs/sections.md`.)
+
+### Helpers and tests
+
+`app/lib/sections/_shared/responsive-css.ts` exports:
+
+- `emitResponsiveCSS(scope, propsByBreakpoint, propMap, options?)` —
+  emits scope CSS with optional mobile block + tablet/desktop @media
+  blocks. Empty string when no overrides AND `includeMobile` is false.
+- `emitVisibilityCSS(scope, propsByBreakpoint)` — cascade-aware
+  visibility rules.
+- `diffOverrides(propsByBreakpoint, breakpoint, keys)` — structural
+  equality so SpacingValue / object props compare correctly.
+- `wrapStyle(css)` — wraps in `{%- style -%} ... {%- endstyle -%}` or
+  returns "" for empty input.
+- `scopeClass(sectionType, blockId)` — `demeurer-<type>-<id>` with
+  defensive sanitization to `[a-z0-9_-]`.
+- `pxValue`, `textAlignLogical` — common transform helpers.
+
+Unit tests at `app/lib/sections/_shared/__tests__/responsive-css.test.ts`
+exercise the cascade, structural equality, redundant-override
+deduplication, visibility cascade semantics, mobileLiquid pass-through,
+and the freshly-built-page exit-gate criterion. **48 / 48 green.**
+
+### Verification of the four architectural commitments
+
+| # | Commitment | Status after P1.C |
+|---|------------|---|
+| 1 | Pages keep rendering after uninstall | ✅ All responsive overrides bake into the Liquid section file. After uninstall, the page renders unchanged AND tablet/desktop overrides still apply (they're CSS in the theme, not served by Demeurer). |
+| 2 | No runtime JavaScript injection from our servers | ✅ Every responsive override is a plain `@media` rule. No JS-driven breakpoint detection anywhere. The Pricing billing-toggle carve-out (~15 lines, opt-in) remains the only inline JS. |
+| 3 | Pages survive theme updates because they ARE the theme | ✅ The `{% style %}` block is part of the section file. A theme update doesn't touch it. |
+| 4 | Stop if violating 1–3 | ✅ The helper API enforces this — there is no path to emit JS for responsive behavior. |
+
+### P1.C exit gate
+
+Manual verification protocol at `scripts/p1c-exit-gate.md`. Static
+boxes (unit tests, TypeScript, helper semantics, section refactor) are
+ticked. Manual rows (editor breakpoint UX, Dawn paste-test, Lighthouse,
+post-uninstall verification) sit with the merchant.
+
+### Known limitations carried into P1.D and beyond
+
+- **Layout-changing fields aren't responsive.** Per-breakpoint column
+  count for Feature list / Testimonial / Logo wall is not currently
+  supported. The helper scopes CSS to the section root only; piping
+  declarations into inner elements would require a richer API.
+  Documented as a future enhancement.
+- **No fluid type scaling.** Heading sizes are mobile-default; merchants
+  can override them at tablet/desktop, but there's no `clamp()`-based
+  fluid scale. Three breakpoints, period.
+- **No container queries.** Same rationale.
 
 ---
 
@@ -178,28 +313,44 @@ Foundation only is in place. None of the following exist:
 
 ---
 
-## Next 3 things to work on — P1.C (responsive model)
+## Next 3 things to work on — P1.D (compile pipeline + theme writer)
 
-P1.B closed with sections that work "well enough" at any width because they use sensible defaults + logical properties. P1.C makes the merchant control responsive behavior explicitly.
+P1.C closed with every section emitting publish-ready Liquid + responsive
+CSS. P1.D is the linchpin: actually writing those files into the
+merchant's theme.
 
-### 1. Responsive property model
+### 1. Compile pipeline
 
-Extend `SectionSchema` so any field can declare per-breakpoint overrides:
-- Add a `responsive: true` flag to field definitions (e.g. `padding`, `columns`, `headingScale`).
-- Editor stores `props.<field>` as either a scalar (today) or an object `{ base, sm, md, lg }`.
-- Inspector renders a "responsive" toggle next to applicable fields → reveals per-breakpoint inputs that fall through to `base`.
-- `Render.tsx` resolves the active breakpoint via `useBreakpoint()` hook (canvas iframe width, not viewport).
-- `toLiquid.ts` emits CSS custom properties + media queries: `--demeurer-padding-block: 16px; @media (min-width: 750px) { --demeurer-padding-block: 24px; }`. No JS to swap values.
+A pure function `compilePage(page: Page): { sectionFiles, jsonTemplate }`:
+- Walk `page.source` block tree, call each section's `toLiquid` with the
+  block's `propsByBreakpoint` and a stable `blockId`.
+- Concatenate per-block Liquid into one `sections/demeurer-<handle>.liquid`
+  file with the merged `{% schema %}`.
+- Emit a JSON template (e.g. `templates/page.<handle>.json`) that
+  references the section.
+- Idempotent: same `Page` row → byte-identical output.
 
-### 2. Breakpoint preview toolbar
+### 2. Theme writer
 
-Above the canvas iframe, a width selector (mobile 375 / tablet 750 / desktop 1200 / fluid). Resizes the iframe; the editor surfaces "you are editing the `md` override" affordance whenever the active breakpoint differs from `base`.
+Shopify Asset API client at `app/lib/theme/writer.ts`:
+- `putAsset(themeId, key, value)` with retries on rate limit.
+- Idempotent overwrite — if the file already exists with identical
+  content, skip the API call.
+- Rollback on partial failure (write all-or-nothing across the section
+  file + JSON template).
+- Dry-run mode for preview.
 
-### 3. Per-section responsive defaults
+### 3. Publish route
 
-Each section declares default per-breakpoint behavior (e.g. Feature list collapses to 1 column at <750, Hero shrinks heading scale). Defaults live in the schema; merchant overrides them. Quality checks extend to flag responsive issues (e.g. heading > 60px at mobile is yellow).
+`POST /app/api/pages/:id/publish`:
+- Authenticate, verify `page.shop === request.shop`.
+- Call `compilePage`, then `themeWriter.putAsset` for each emitted file.
+- Set `page.publishedAt`, `page.themeId`.
+- Snapshot a `PageVersion` labeled "Published".
+- Return the storefront URL.
 
-After P1.C: P1.D = compile pipeline + theme writer (the linchpin, deferred from P0). Then publish flow + `themes/publish` handler.
+After P1.D: `themes/publish` webhook handler (re-write Demeurer sections
+into newly published themes), then preview flow, then billing.
 
 ---
 
@@ -223,4 +374,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-03 (P1.B COMPLETE: 12 sections, dual-rendering contract documented, internal `/app/catalog`, exit-gate checklist at `scripts/p1b-exit-gate.md`, authoring guide at `docs/sections.md`. P1.C — responsive model — is next.)
+**Last updated:** 2026-05-03 (P1.C COMPLETE: per-breakpoint cascade across all 12 sections, pure CSS responsive output via `app/lib/sections/_shared/responsive-css.ts`, 48 / 48 unit tests green, exit-gate checklist at `scripts/p1c-exit-gate.md`. P1.D — compile pipeline + theme writer — is next.)

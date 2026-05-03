@@ -11,15 +11,22 @@
  */
 
 import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext } from "../types";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import {
+  emitResponsiveCSS,
+  emitVisibilityCSS,
+  scopeClass,
+  wrapStyle,
+  type CssPropMap,
+} from "../_shared/responsive-css";
 import { coerceHtmlProps, htmlDefaults } from "./schema";
 
 export function htmlToLiquid(
   propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
   const props = coerceHtmlProps(propsByBreakpoint.mobile);
+  const scope = scopeClass(ctx.sectionType, ctx.blockId);
 
   const schema = {
     name: "Custom HTML",
@@ -44,14 +51,32 @@ export function htmlToLiquid(
     presets: [{ name: "Custom HTML" }],
   };
 
+  // html and notes are non-responsive (structural). Only padding +
+  // visibility flow through the responsive helpers.
+  const propMap: CssPropMap[] = [
+    {
+      propKey: "padding",
+      cssProperty: "padding",
+      toCss: (v) => {
+        const p = v as SpacingValue;
+        return `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`;
+      },
+    },
+  ];
+
+  const overrideCss = emitResponsiveCSS(scope, propsByBreakpoint, propMap);
+  const visibilityCss = emitVisibilityCSS(scope, propsByBreakpoint);
+  const styleBlock = wrapStyle([overrideCss, visibilityCss].filter(Boolean).join("\n"));
+
   const template = `
+${styleBlock}
 {%- comment -%}
   Custom HTML section. Output is merchant-authored and rendered as-is
   with no sanitization. Edit the "Custom HTML" setting in the theme
   editor to change.
 {%- endcomment -%}
 <div
-  class="demeurer-html-section"
+  class="${scope} demeurer-html-section"
   style="
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
   "

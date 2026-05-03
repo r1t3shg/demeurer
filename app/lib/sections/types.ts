@@ -214,6 +214,14 @@ export interface LiquidOutput {
 export interface ToLiquidContext {
   /** The section type, useful for namespacing CSS classes / IDs. */
   sectionType: string;
+  /**
+   * The Demeurer block id. Used to emit a unique class scope per
+   * compiled section so per-block responsive overrides can target
+   * exactly one element with media queries (e.g.
+   * `.demeurer-hero-cltf3a8q90001`). Stable across recompiles —
+   * generated once when the block is created.
+   */
+  blockId: string;
 }
 
 /* --------------------------- Section definition ------------------------- */

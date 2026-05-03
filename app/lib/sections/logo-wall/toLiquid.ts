@@ -12,14 +12,21 @@
  */
 
 import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext } from "../types";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import {
+  emitResponsiveCSS,
+  emitVisibilityCSS,
+  scopeClass,
+  wrapStyle,
+  type CssPropMap,
+} from "../_shared/responsive-css";
 import { logoHeightPx, logoWallDefaults } from "./schema";
 
 export function logoWallToLiquid(
-  _propsByBreakpoint: PropsByBreakpoint,
+  propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
+  const scope = scopeClass(ctx.sectionType, ctx.blockId);
   const small = logoHeightPx("small");
   const medium = logoHeightPx("medium");
   const large = logoHeightPx("large");
@@ -70,7 +77,23 @@ export function logoWallToLiquid(
     presets: [{ name: "Logo wall", blocks: [{ type: "logo" }, { type: "logo" }, { type: "logo" }, { type: "logo" }] }],
   };
 
+  const propMap: CssPropMap[] = [
+    {
+      propKey: "padding",
+      cssProperty: "padding",
+      toCss: (v) => {
+        const p = v as SpacingValue;
+        return `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`;
+      },
+    },
+  ];
+
+  const overrideCss = emitResponsiveCSS(scope, propsByBreakpoint, propMap);
+  const visibilityCss = emitVisibilityCSS(scope, propsByBreakpoint);
+  const styleBlock = wrapStyle([overrideCss, visibilityCss].filter(Boolean).join("\n"));
+
   const template = `
+${styleBlock}
 {%- liquid
   assign size = section.settings.logo_size | default: '${logoWallDefaults.logoSize}'
   assign h = ${medium}
@@ -86,7 +109,7 @@ export function logoWallToLiquid(
 -%}
 
 <div
-  class="demeurer-logo-wall"
+  class="${scope} demeurer-logo-wall"
   style="
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
   "

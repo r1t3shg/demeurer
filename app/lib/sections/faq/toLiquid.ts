@@ -8,15 +8,22 @@
  */
 
 import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext } from "../types";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import {
+  emitResponsiveCSS,
+  emitVisibilityCSS,
+  scopeClass,
+  wrapStyle,
+  type CssPropMap,
+} from "../_shared/responsive-css";
 import { coerceFaqProps, faqDefaults } from "./schema";
 
 export function faqToLiquid(
   propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
   const props = coerceFaqProps(propsByBreakpoint.mobile);
+  const scope = scopeClass(ctx.sectionType, ctx.blockId);
 
   const schema = {
     name: "FAQ",
@@ -60,7 +67,23 @@ export function faqToLiquid(
     ],
   };
 
+  const propMap: CssPropMap[] = [
+    {
+      propKey: "padding",
+      cssProperty: "padding",
+      toCss: (v) => {
+        const p = v as SpacingValue;
+        return `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`;
+      },
+    },
+  ];
+
+  const overrideCss = emitResponsiveCSS(scope, propsByBreakpoint, propMap);
+  const visibilityCss = emitVisibilityCSS(scope, propsByBreakpoint);
+  const styleBlock = wrapStyle([overrideCss, visibilityCss].filter(Boolean).join("\n"));
+
   const template = `
+${styleBlock}
 {%- liquid
   assign text_align_logical = 'center'
   if section.settings.alignment == 'left'
@@ -70,7 +93,7 @@ export function faqToLiquid(
   endif
 -%}
 <div
-  class="demeurer-faq"
+  class="${scope} demeurer-faq"
   style="
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
   "

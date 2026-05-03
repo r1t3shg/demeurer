@@ -9,16 +9,23 @@
  */
 
 import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext } from "../types";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
 import { liquidString } from "../_shared/coerce";
+import {
+  emitResponsiveCSS,
+  emitVisibilityCSS,
+  scopeClass,
+  wrapStyle,
+  type CssPropMap,
+} from "../_shared/responsive-css";
 import { coerceImageTextProps, imageTextDefaults } from "./schema";
 
 export function imageTextToLiquid(
   propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
   const props = coerceImageTextProps(propsByBreakpoint.mobile);
+  const scope = scopeClass(ctx.sectionType, ctx.blockId);
 
   const schema = {
     name: "Image + text",
@@ -59,7 +66,22 @@ export function imageTextToLiquid(
     presets: [{ name: "Image + text" }],
   };
 
-  const template = `
+  const propMap: CssPropMap[] = [
+    {
+      propKey: "padding",
+      cssProperty: "padding",
+      toCss: (v) => {
+        const p = v as SpacingValue;
+        return `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`;
+      },
+    },
+  ];
+
+  const overrideCss = emitResponsiveCSS(scope, propsByBreakpoint, propMap);
+  const visibilityCss = emitVisibilityCSS(scope, propsByBreakpoint);
+  const styleBlock = wrapStyle([overrideCss, visibilityCss].filter(Boolean).join("\n"));
+
+  const template = `${styleBlock}
 {%- liquid
   assign image_pct = section.settings.image_width | plus: 0
   assign text_pct = 100 | minus: image_pct
@@ -71,7 +93,7 @@ export function imageTextToLiquid(
 -%}
 
 <div
-  class="demeurer-image-text"
+  class="${scope} demeurer-image-text"
   style="
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
   "

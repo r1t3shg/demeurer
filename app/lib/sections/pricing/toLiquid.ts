@@ -16,15 +16,22 @@
 
 import type { PropsByBreakpoint } from "../../editor/types";
 import { liquidString } from "../_shared/coerce";
-import type { LiquidOutput, ToLiquidContext } from "../types";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import {
+  emitResponsiveCSS,
+  emitVisibilityCSS,
+  scopeClass,
+  wrapStyle,
+  type CssPropMap,
+} from "../_shared/responsive-css";
 import { coercePricingProps, pricingDefaults } from "./schema";
 
 export function pricingToLiquid(
   propsByBreakpoint: PropsByBreakpoint,
   ctx: ToLiquidContext,
 ): LiquidOutput {
-  // TODO P1.C segment 4: emit responsive CSS from tablet/desktop overrides.
   const props = coercePricingProps(propsByBreakpoint.mobile);
+  const scope = scopeClass(ctx.sectionType, ctx.blockId);
 
   const schema = {
     name: "Pricing",
@@ -81,7 +88,23 @@ export function pricingToLiquid(
   const fallbackHeading = liquidString(props.heading);
   const fallbackSub = liquidString(props.subheading);
 
+  const propMap: CssPropMap[] = [
+    {
+      propKey: "padding",
+      cssProperty: "padding",
+      toCss: (v) => {
+        const p = v as SpacingValue;
+        return `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`;
+      },
+    },
+  ];
+
+  const overrideCss = emitResponsiveCSS(scope, propsByBreakpoint, propMap);
+  const visibilityCss = emitVisibilityCSS(scope, propsByBreakpoint);
+  const styleBlock = wrapStyle([overrideCss, visibilityCss].filter(Boolean).join("\n"));
+
   const template = `
+${styleBlock}
 {%- liquid
   assign heading = section.settings.heading | default: ${fallbackHeading}
   assign subheading = section.settings.subheading | default: ${fallbackSub}
@@ -89,7 +112,7 @@ export function pricingToLiquid(
 -%}
 
 <div
-  class="demeurer-pricing"
+  class="${scope} demeurer-pricing"
   data-section-id="{{ section.id }}"
   style="
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;

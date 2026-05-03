@@ -377,6 +377,174 @@ registerSection(statsCounterDefinition);
 
 ---
 
+## Responsive design (P1.C)
+
+Sections support per-breakpoint overrides on every editable field
+(except those flagged structural — see below). Three fixed breakpoints,
+mobile-first cascade, pure CSS media queries. **No JavaScript runs on
+the storefront for responsive behavior.**
+
+### The breakpoints
+
+| Name | Min width | Source |
+|---|---|---|
+| Mobile | 0 (base) | canonical layer; always present |
+| Tablet | `≥ 768px` | sparse override layer |
+| Desktop | `≥ 1280px` | sparse override layer |
+
+These are non-negotiable. The helpers do not accept a fourth. We do
+not support container queries or fluid `clamp()` scales.
+
+### Authoring `toLiquid` for responsiveness
+
+Every section's `toLiquid` follows this shape:
+
+```ts
+import {
+  emitResponsiveCSS,
+  emitVisibilityCSS,
+  scopeClass,
+  wrapStyle,
+  type CssPropMap,
+} from "../_shared/responsive-css";
+
+export function myToLiquid(
+  propsByBreakpoint: PropsByBreakpoint,
+  ctx: ToLiquidContext,
+): LiquidOutput {
+  const props = coerceMyProps(propsByBreakpoint.mobile);
+  const scope = scopeClass(ctx.sectionType, ctx.blockId);
+
+  const propMap: CssPropMap[] = [
+    {
+      propKey: "padding",
+      cssProperty: "padding",
+      toCss: (v) => {
+        const p = v as SpacingValue;
+        return `${p.top}px ${p.right}px ${p.bottom}px ${p.left}px`;
+      },
+    },
+    {
+      propKey: "alignment",
+      cssProperty: "text-align",
+      toCss: textAlignLogical,
+    },
+  ];
+
+  const overrideCss = emitResponsiveCSS(scope, propsByBreakpoint, propMap);
+  const visibilityCss = emitVisibilityCSS(scope, propsByBreakpoint);
+  const styleBlock = wrapStyle(
+    [overrideCss, visibilityCss].filter(Boolean).join("\n"),
+  );
+
+  // styleBlock goes at the top of the template; scope class goes on
+  // the section root.
+  const template = `
+${styleBlock}
+<div class="${scope} demeurer-my-section" style="...">
+  ...
+</div>
+  `.trim();
+
+  return { schema, template };
+}
+```
+
+Key rules:
+
+- **Scope class on the root.** `demeurer-<type>-<blockId>` is generated
+  by `scopeClass`. Without it, `@media` overrides wouldn't be able to
+  target a specific block instance.
+- **Mobile values via inline `style="..."`** driven by Liquid runtime
+  (`section.settings.foo`). This keeps theme-editor edits live for
+  mobile. Tablet/desktop overrides bake compile-time and use
+  `!important` to win specificity.
+- **Empty when no overrides.** A freshly-built page emits no
+  `{% style %}` block at all — the published Liquid is indistinguishable
+  from a hand-written section.
+
+### Worked example: Hero padding override
+
+A merchant authors:
+
+```ts
+{
+  mobile: { padding: { top: 96, right: 24, bottom: 96, left: 24 } },
+  tablet: { padding: { top: 64, right: 24, bottom: 64, left: 24 } },
+}
+```
+
+The compiled section file looks like:
+
+```liquid
+{%- style -%}
+@media (min-width: 768px) {
+  .demeurer-hero-cltf3a8q9 {
+    padding: 64px 24px 64px 24px !important;
+  }
+}
+{%- endstyle -%}
+
+<div
+  class="demeurer-hero-cltf3a8q9 demeurer-hero ..."
+  style="padding-top: {{ section.settings.padding_top }}px; ..."
+>
+  ...
+</div>
+```
+
+At <768px the inline mobile style wins (96px). At ≥768px the @media
+rule wins (64px) via `!important`.
+
+### Content vs style overrides
+
+Content edits (heading text, image URLs, list-item additions) are
+authored at mobile and shared across breakpoints. Tablet/desktop layers
+are reserved for **style** overrides — padding, alignment, visibility,
+and similar presentational fields. The inspector enforces this with a
+"Same on all breakpoints" badge on structural fields.
+
+### Non-responsive (structural) fields
+
+Some fields' meaning would change if the value differed per device. We
+mark these `responsive: false` on the schema and the inspector renders
+them read-only at tablet/desktop:
+
+| Section | Field | Why |
+|---|---|---|
+| Form | `formType` | A different submission target per device makes no sense. |
+| Form | `fields[]` | Different field set per device creates duplicate content trees. |
+| Custom HTML | `html` | Per-device markup creates duplicate content trees. |
+| Custom HTML | `notes` | Internal merchant note; not user-facing. |
+| Spacer | `showDivider` | Toggling a divider's existence per breakpoint is a different section. |
+| Spacer | `dividerColor` | Color is per-design, not per-breakpoint. |
+| Spacer | `dividerWidth` | Same as above. |
+
+Layout-changing select fields (Feature list `layout`, Testimonial
+`layout`, Logo wall `layout`, Video `aspectRatio`) are also de-facto
+non-responsive in P1.C — their CSS targets inner elements that the
+shared helper does not scope to. Per-breakpoint column count is a
+documented future enhancement.
+
+### Visibility
+
+`_visibility: false` at any layer hides the section at that breakpoint
+upward (cascade applies). The helper emits a `display: none !important`
+rule only at the breakpoint where visibility CHANGES; if visibility
+flips back from hidden to visible at a later breakpoint, the helper
+emits `display: revert !important`.
+
+### Architectural commitment
+
+**Every responsive override is plain CSS.** There is no path through
+the helpers to emit JS for responsive behavior. The Pricing
+billing-toggle (~15 lines, opt-in) remains the only inline JS in any
+section. If you find yourself wanting a `ResizeObserver` or a `match
+Media` listener for layout, the right move is to add a CSS-only
+solution or document a non-responsive limitation.
+
+---
+
 ## What NOT to do
 
 - Don't add a 13th section just because adding one is now easy. The

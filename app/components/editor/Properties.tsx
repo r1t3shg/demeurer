@@ -199,7 +199,10 @@ function PropertiesBody({
   let liquidPreview: { schema: string; template: string; assets: string } | null = null;
   if (SHOW_LIQUID_ENABLED && showLiquid && def) {
     try {
-      const out = def.toLiquid(block.props, { sectionType: block.type });
+      const out = def.toLiquid(block.props, {
+        sectionType: block.type,
+        blockId: block.id,
+      });
       liquidPreview = {
         schema: JSON.stringify(out.schema, null, 2),
         template: out.template,
