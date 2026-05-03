@@ -52,6 +52,7 @@ if (typeof window !== "undefined") {
 }
 
 export { getSection, listSections, listSectionsByCategory } from "./registry";
+export { isResponsiveField } from "./types";
 export type {
   BooleanField,
   ColorField,

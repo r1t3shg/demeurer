@@ -58,12 +58,20 @@ export const formSchema: SectionSchema = {
         { value: "newsletter", label: "Newsletter signup" },
       ],
       default: "contact",
+      // Form submission target — different per breakpoint would mean a
+      // mobile contact form and a desktop newsletter signup on the same
+      // section. Semantically wrong; structural.
+      responsive: false,
     },
     {
       kind: "list",
       key: "fields",
       label: "Fields",
       maxItems: 8,
+      // The set of fields IS the form. Per-breakpoint variations would
+      // mean different submitted payloads per device — structural, not
+      // presentational.
+      responsive: false,
       itemSchema: [
         { kind: "text", key: "name", label: "Field name (no spaces)", max: 40 },
         { kind: "text", key: "label", label: "Label" },

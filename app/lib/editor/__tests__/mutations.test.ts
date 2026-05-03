@@ -62,6 +62,33 @@ describe("setProp", () => {
     // The override layer should be gone entirely once empty.
     assert.equal(currentBlock().props.tablet, undefined);
   });
+
+  it("with applyToMobile:true at desktop, clears overrides at BOTH tablet and desktop", () => {
+    // Set both tablet and desktop overrides on the same key.
+    setProp("b1", "tablet", "color", "#abc");
+    setProp("b1", "desktop", "color", "#fff");
+    assert.deepEqual(currentBlock().props.tablet, { color: "#abc" });
+    assert.deepEqual(currentBlock().props.desktop, { color: "#fff" });
+
+    // Apply-to-all from desktop should mutate mobile AND wipe both
+    // override layers — leaving "stale" tablet overrides behind would
+    // make "applied to all breakpoints" a lie at the tablet view.
+    setProp("b1", "desktop", "color", "#promoted", { applyToMobile: true });
+    assert.equal(currentBlock().props.mobile.color, "#promoted");
+    assert.equal(currentBlock().props.tablet, undefined);
+    assert.equal(currentBlock().props.desktop, undefined);
+  });
+
+  it("treats _visibility:false at desktop as a normal override", () => {
+    // The synthetic _visibility key is not a section schema field but
+    // routes through the same setProp/cascade plumbing — making sure
+    // here so the visibility row never has to special-case anything.
+    setProp("b1", "desktop", "_visibility", false);
+    assert.deepEqual(currentBlock().props.desktop, { _visibility: false });
+    // mobile + tablet are untouched — block still visible there.
+    assert.equal(currentBlock().props.mobile._visibility, undefined);
+    assert.equal(currentBlock().props.tablet, undefined);
+  });
 });
 
 describe("removeOverride", () => {
@@ -120,6 +147,22 @@ describe("promoteOverride", () => {
     promoteOverride("b1", "desktop", true, "color");
     assert.equal(currentBlock().props.mobile.color, "#000");
     assert.deepEqual(currentBlock().props.tablet, { padding: 24 });
+  });
+
+  it("replaces an existing mobile value when promoting an override", () => {
+    // The merchant has already authored a mobile value; promoting an
+    // override means "this new value should be the default everywhere".
+    // Anything else would silently keep the old default and the
+    // override would just look broken.
+    loadBlock(
+      freshBlock({
+        mobile: { color: "#000" },
+        desktop: { color: "#promoted" },
+      }),
+    );
+    promoteOverride("b1", "desktop", true, "color");
+    assert.equal(currentBlock().props.mobile.color, "#promoted");
+    assert.equal(currentBlock().props.desktop, undefined);
   });
 });
 

@@ -37,8 +37,20 @@ export const spacerSchema: SectionSchema = {
       max: 400,
       step: 4,
     },
-    { kind: "boolean", key: "showDivider", label: "Show divider line" },
-    { kind: "color", key: "dividerColor", label: "Divider color" },
+    // showDivider toggles structure (line vs. blank space). dividerColor
+    // is a structural property of the same — keep them mobile-only.
+    {
+      kind: "boolean",
+      key: "showDivider",
+      label: "Show divider line",
+      responsive: false,
+    },
+    {
+      kind: "color",
+      key: "dividerColor",
+      label: "Divider color",
+      responsive: false,
+    },
     {
       kind: "select",
       key: "dividerWidth",

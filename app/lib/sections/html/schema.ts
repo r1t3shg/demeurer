@@ -25,11 +25,16 @@ export interface HtmlProps {
 
 export const htmlSchema: SectionSchema = {
   fields: [
-    { kind: "richtext", key: "html", label: "Custom HTML" },
+    // Per-breakpoint HTML would mean four parallel content trees in
+    // the same section. The merchant intent for "different markup on
+    // mobile" is to use Custom HTML twice with breakpoint-level
+    // visibility, not to fork the markup.
+    { kind: "richtext", key: "html", label: "Custom HTML", responsive: false },
     {
       kind: "text",
       key: "notes",
       label: "Notes (editor only — not rendered)",
+      responsive: false,
     },
     { kind: "spacing", key: "padding", label: "Section padding" },
   ],

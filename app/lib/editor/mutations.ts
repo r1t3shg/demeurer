@@ -24,10 +24,10 @@ interface SetPropOptions {
   /**
    * If true and `breakpoint` is tablet/desktop, the value is written to
    * the mobile (canonical) layer instead of as an override at the
-   * current breakpoint. Any existing override for this key at the
-   * current breakpoint is removed so the new mobile value flows through
-   * naturally. Used by the "Make this the default everywhere" UI in
-   * segment 3.
+   * current breakpoint. Any existing override for this key at ANY
+   * non-mobile breakpoint is removed so the new mobile value flows
+   * through to every breakpoint. Used by the "Apply to all breakpoints"
+   * inline confirmation in the properties panel.
    *
    * Ignored when `breakpoint` is "mobile" (mobile already IS the
    * canonical layer).
@@ -61,14 +61,16 @@ export function setProp(
     }
     if (options?.applyToMobile) {
       props.mobile[key] = value;
-      const layer = props[breakpoint];
-      if (layer && key in layer) {
-        delete layer[key];
-        // If the layer is now empty, drop it so the persisted JSON stays
-        // minimal. The shape contract is "tablet/desktop are present
-        // only when at least one override exists for that breakpoint".
-        if (Object.keys(layer).length === 0) {
-          delete props[breakpoint];
+      // Clear the override for this key at BOTH non-mobile breakpoints
+      // so the new mobile value flows through everywhere. "Apply to all
+      // breakpoints" means exactly that — no stale overrides left behind.
+      for (const bp of ["tablet", "desktop"] as const) {
+        const layer = props[bp];
+        if (layer && key in layer) {
+          delete layer[key];
+          if (Object.keys(layer).length === 0) {
+            delete props[bp];
+          }
         }
       }
       return;

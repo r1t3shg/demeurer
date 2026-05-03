@@ -58,6 +58,28 @@ interface FieldBase {
   key: string;
   /** Human-readable label for the inspector. */
   label: string;
+  /**
+   * Whether this field is editable at tablet/desktop as a per-breakpoint
+   * override. Default `true`. Set to `false` for STRUCTURAL fields whose
+   * meaning would change if the value differed per device — e.g. a
+   * form's `formType` (different submission targets per device makes
+   * no sense), Custom HTML's markup (creates duplicate content trees),
+   * or a spacer's divider toggle.
+   *
+   * When false:
+   *  - The field is editable only at mobile.
+   *  - At tablet/desktop the inspector renders it read-only with a
+   *    "Same on all breakpoints" badge.
+   *  - The "Apply to" inline confirmation never appears for this field.
+   */
+  responsive?: boolean;
+}
+
+/**
+ * `field.responsive === false` is opt-out — most fields are responsive.
+ */
+export function isResponsiveField(field: { responsive?: boolean }): boolean {
+  return field.responsive !== false;
 }
 
 export interface TextField extends FieldBase {

@@ -158,11 +158,28 @@ function renderBlock(
     return wrapBlock(
       block,
       `<div class="demeurer-preview-unknown">Unknown section: ${escapeText(block.type)}</div>`,
+      false,
     );
   }
 
   const { Render } = def;
   const resolved = resolveProps(block, breakpoint);
+
+  // Per-breakpoint visibility (P1.C segment 3): if the block is hidden
+  // at the active breakpoint, render the placeholder instead of the
+  // section. The actual section content is omitted (not just CSS-
+  // hidden) so the merchant can still click the placeholder to select
+  // and re-enable the block. Segment 4 emits the proper media-query
+  // display rule into published Liquid.
+  if (resolved._visibility === false) {
+    const sectionLabel = escapeText(def.label ?? block.type);
+    const placeholder = `<div class="demeurer-preview-hidden">
+      <span class="demeurer-preview-hidden__label">${sectionLabel}</span>
+      <span class="demeurer-preview-hidden__hint">Hidden at this breakpoint</span>
+    </div>`;
+    return wrapBlock(block, placeholder, true);
+  }
+
   let inner: string;
   try {
     inner = renderToString(
@@ -173,11 +190,12 @@ function renderBlock(
       err instanceof Error ? err.message : String(err),
     )}</div>`;
   }
-  return wrapBlock(block, inner);
+  return wrapBlock(block, inner, false);
 }
 
-function wrapBlock(block: Block, inner: string): string {
-  return `      <div data-demeurer-block-id="${escapeAttr(block.id)}" data-demeurer-block-type="${escapeAttr(block.type)}" class="demeurer-block">${inner}</div>`;
+function wrapBlock(block: Block, inner: string, hidden: boolean): string {
+  const cls = hidden ? "demeurer-block demeurer-block--hidden" : "demeurer-block";
+  return `      <div data-demeurer-block-id="${escapeAttr(block.id)}" data-demeurer-block-type="${escapeAttr(block.type)}" class="${cls}">${inner}</div>`;
 }
 
 function errorPage(status: number, reason: string): Response {

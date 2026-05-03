@@ -67,6 +67,47 @@ body.demeurer-preview {
   font-size: 13px;
 }
 
+/* Hidden-at-this-breakpoint placeholder. P1.C segment 3: blocks whose
+ * resolved _visibility is false at the active breakpoint render this
+ * faded placeholder instead of the section content, so the merchant
+ * can still click to select and re-enable. Segment 4 emits the proper
+ * media-query display:none rule into published Liquid; this style is
+ * editor-only and never ships. */
+.demeurer-block--hidden {
+  background: transparent;
+}
+
+.demeurer-preview-hidden {
+  padding: 28px 20px;
+  margin: 8px 16px;
+  border: 1px dashed #c9cccf;
+  border-radius: 8px;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.02),
+    rgba(0, 0, 0, 0.02) 8px,
+    rgba(0, 0, 0, 0.04) 8px,
+    rgba(0, 0, 0, 0.04) 16px
+  );
+  color: #6d7175;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+}
+
+.demeurer-preview-hidden__label {
+  font-weight: 600;
+  color: #202223;
+}
+
+.demeurer-preview-hidden__hint {
+  font-style: italic;
+}
+
 /* Full-page error fallback rendered when the loader bails out. */
 
 body.demeurer-preview-error-page {

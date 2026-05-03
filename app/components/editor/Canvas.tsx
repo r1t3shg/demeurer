@@ -319,6 +319,20 @@ function InlineBlock({
   }
   const { Render } = def;
   const resolved = resolveProps(block, breakpoint);
+  // Visibility (P1.C segment 3): hidden blocks render as a faded
+  // placeholder so the merchant can still see + re-enable them.
+  if (resolved._visibility === false) {
+    return (
+      <div className="demeurer-section-frame demeurer-section-frame-readonly demeurer-preview-hidden">
+        <span className="demeurer-preview-hidden__label">
+          {def.label ?? block.type}
+        </span>
+        <span className="demeurer-preview-hidden__hint">
+          Hidden at this breakpoint
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="demeurer-section-frame demeurer-section-frame-readonly">
       <Render props={resolved} themeTokens={themeTokens} />

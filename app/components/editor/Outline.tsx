@@ -192,13 +192,34 @@ function OutlineNode({
   const hasChildren = block.children.length > 0;
   const showChildren = depth < 1 && hasChildren && expanded;
 
+  // Per-breakpoint override summary surfaced as small dots. The brief
+  // calls for yellow=tablet, orange=desktop, both stacked when both
+  // exist. We treat the synthetic _visibility key the same as any
+  // override here — a block hidden on desktop is also a "responsive
+  // tweak" the merchant should see at a glance.
+  const tabletOverrides = block.props.tablet
+    ? Object.keys(block.props.tablet).length
+    : 0;
+  const desktopOverrides = block.props.desktop
+    ? Object.keys(block.props.desktop).length
+    : 0;
+
+  // Visibility: hidden anywhere (including mobile) earns the
+  // strikethrough and eye-slash. Anything other than `false` reads as
+  // visible — undefined is the default-true case.
+  const hiddenAtAny =
+    block.props.mobile._visibility === false ||
+    block.props.tablet?._visibility === false ||
+    block.props.desktop?._visibility === false;
+
   return (
     <>
       <div
         className={
           "demeurer-outline-row" +
           (isSelected ? " demeurer-outline-row-selected" : "") +
-          (isOver ? " demeurer-outline-row-over" : "")
+          (isOver ? " demeurer-outline-row-over" : "") +
+          (hiddenAtAny ? " demeurer-outline-row-hidden" : "")
         }
         style={{ paddingLeft: 8 + depth * 16 }}
         onClick={() => onSelect(block.id)}
@@ -230,8 +251,33 @@ function OutlineNode({
         ) : (
           <span className="demeurer-outline-chevron-spacer" />
         )}
+        {hiddenAtAny ? (
+          <LucideIcons.EyeOff
+            size={12}
+            aria-label="Hidden on at least one breakpoint"
+            className="demeurer-outline-hidden-icon"
+          />
+        ) : null}
         <span className="demeurer-outline-type">{block.type}</span>
         <span className="demeurer-outline-label">{labelFor(block)}</span>
+        {tabletOverrides > 0 || desktopOverrides > 0 ? (
+          <span
+            className="demeurer-outline-overrides"
+            aria-label={`${tabletOverrides} tablet, ${desktopOverrides} desktop override${
+              tabletOverrides + desktopOverrides === 1 ? "" : "s"
+            }`}
+            title={`${tabletOverrides} tablet, ${desktopOverrides} desktop override${
+              tabletOverrides + desktopOverrides === 1 ? "" : "s"
+            }`}
+          >
+            {tabletOverrides > 0 ? (
+              <span className="demeurer-outline-dot demeurer-outline-dot--tablet" />
+            ) : null}
+            {desktopOverrides > 0 ? (
+              <span className="demeurer-outline-dot demeurer-outline-dot--desktop" />
+            ) : null}
+          </span>
+        ) : null}
         <button
           type="button"
           className="demeurer-outline-delete"
