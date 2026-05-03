@@ -32,3 +32,38 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+// Editor source-of-truth for a page. `source` is a JSON tree (the editor's
+// block model). Intentionally NOT normalized into separate columns — the
+// editor schema will evolve frequently in early development and flattening
+// would make migrations painful. SQLite stores Json as TEXT under the hood.
+model Page {
+  id          String        @id @default(cuid())
+  shop        String
+  title       String
+  type        String        // "landing" | "product"
+  handle      String        // URL slug
+  source      Json          // Editor's source-of-truth tree
+  publishedAt DateTime?
+  themeId     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  versions    PageVersion[]
+
+  @@unique([shop, handle])
+  @@index([shop])
+}
+
+// Append-only version history for a page. Cascade-deletes when the parent
+// Page is deleted by the merchant from inside the app — but is intentionally
+// preserved on app uninstall (see app/routes/webhooks.app.uninstalled.tsx).
+model PageVersion {
+  id        String   @id @default(cuid())
+  pageId    String
+  source    Json
+  label     String?
+  createdAt DateTime @default(now())
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+}

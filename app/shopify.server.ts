@@ -1,3 +1,18 @@
+/**
+ * Demeurer — architectural commitments
+ * =====================================
+ *
+ *   1. When the merchant uninstalls or cancels, pages KEEP RENDERING unchanged.
+ *      The editor goes read-only on cancel; pages stay live forever.
+ *   2. No runtime JavaScript injection from our servers. Zero page-speed penalty.
+ *   3. Pages survive theme updates because they ARE the theme.
+ *   4. If you find yourself writing code that violates 1–3, stop.
+ *
+ * Demeurer compiles pages to native Liquid section files in the merchant's
+ * theme. The auth/session layer below must never break that contract — no
+ * background workers that mutate themes on uninstall, no server-side
+ * rewriting of merchant pages, no shadow runtime that pages depend on.
+ */
 import "@shopify/shopify-app-react-router/adapters/node";
 import {
   ApiVersion,
