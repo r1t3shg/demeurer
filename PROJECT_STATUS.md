@@ -1,6 +1,49 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. This document tracks foundation setup (P0) and what comes next.
+A Shopify landing-page builder. This document tracks foundation (P0) and editor data-loss-proofing (P1.A), and what comes next.
+
+---
+
+## P1.A — Editor MVP (data-loss-proof) ✅ Complete (code) — exit gate pending manual run
+
+**Delivered:**
+
+| Area | Files |
+|------|-------|
+| In-memory editor state (Zustand + immer, history/future) | `app/lib/editor/store.ts`, `app/lib/editor/types.ts` |
+| Persistence — autosave (debounced PATCH) + crash recovery via localStorage mirror | `app/lib/editor/useAutosave.ts`, `app/lib/editor/recovery.ts`, `app/routes/app.api.pages.$id.ts` |
+| Three-pane editor shell (outline / canvas / properties) | `app/components/editor/Outline.tsx`, `Canvas.tsx`, `Properties.tsx`, `app/routes/app.pages.$id.tsx`, `app/styles/editor.css` |
+| Save indicator + recovery banner + Cmd+Z/Cmd+Shift+Z shortcuts | `app/components/SaveIndicator.tsx`, `app.pages.$id.tsx` |
+| Drag-to-reorder (top-level, dnd-kit; nested deferred to P1.B) | `app/components/editor/Outline.tsx`, `app/lib/editor/dnd.ts` |
+| Version history drawer + Save-named-snapshot + Preview/Restore | `app/components/editor/VersionHistory.tsx`, `app/routes/app.api.pages.$id.versions.ts`, `app/routes/app.api.pages.$id.snapshot.ts` |
+| Dev-only Simulate-crash button (gated on `import.meta.env.PROD`) | `app/routes/app.pages.$id.tsx` |
+| 50-round manual chaos test script (P1.A exit gate) | `scripts/p1a-chaos-test.md` |
+
+**Architectural commitments still hold:**
+- Editor only writes to `Page.source` and `PageVersion`; no theme writes from the editor.
+- Crash recovery is purely client-side localStorage (`demeurer:draft:<page-id>`); never bypasses the server save path.
+- Uninstall handler still touches only `Session`. Snapshot and version routes verify `page.shop === request.shop` before any DB read/write.
+
+### P1.A exit gate — chaos test result
+
+The chaos test (`scripts/p1a-chaos-test.md`) is a manual 50-round protocol that requires browser DevTools interaction (Simulate-crash button, Network throttle to Offline, recovery banner inspection). It cannot be executed autonomously by the agent.
+
+| Category | Rounds | Passed |
+|----------|--------|--------|
+| Edit + crash             | 10 | _/10 |
+| Undo/redo + crash        | 10 | _/10 |
+| Drag reorder + crash     | 10 | _/10 |
+| Restore + edit + crash   | 10 | _/10 |
+| Offline edit + crash     | 10 | _/10 |
+| **Total**                | 50 | _/50 |
+
+**Status:** script ready, not yet run. Fill in this table after running. 50/50 = P1.A signed off; any failure = blocker.
+
+### Known limitations carried into P1.B
+- **No real section rendering** — Canvas shows JSON-preview block placeholders, not Liquid output. The iframe theme-preview lands in P1.B.
+- **Properties panel is a JSON textarea** — typed inspectors per block type land in P1.B alongside the schema for hero/text/image.
+- **Drag reorder is top-level only** — nested-block drag, cross-parent moves, and keyboard reorder land in P1.B.
+- **Version list is unfiltered** — newest 50 with no search or filter; auto vs. labeled snapshots are visually distinguished but not separated.
 
 ---
 
@@ -108,4 +151,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-03
+**Last updated:** 2026-05-03 (P1.A code complete; chaos test pending manual run)

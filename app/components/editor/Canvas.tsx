@@ -5,39 +5,61 @@
 // scrolls (the iframe will be drop-in inside this same scroll container).
 
 import { useEditorStore } from "../../lib/editor/store";
-import type { Block } from "../../lib/editor/types";
+import type { Block, EditorDocument } from "../../lib/editor/types";
 
-export function Canvas() {
-  const blocks = useEditorStore((s) => s.document.blocks);
+export interface CanvasProps {
+  /**
+   * If provided, the canvas renders this document instead of the live
+   * store. Used by the version-history preview path. When set, the
+   * canvas is non-interactive (clicks don't change selection).
+   */
+  previewDocument?: EditorDocument;
+  /** Optional banner shown above the page-frame, e.g. during preview. */
+  banner?: React.ReactNode;
+}
+
+export function Canvas({ previewDocument, banner }: CanvasProps) {
+  const liveBlocks = useEditorStore((s) => s.document.blocks);
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const selectBlock = useEditorStore((s) => s.selectBlock);
 
+  const isPreview = !!previewDocument;
+  const blocks = isPreview ? previewDocument!.blocks : liveBlocks;
+
+  const handleEmptyClick = () => {
+    if (isPreview) return;
+    selectBlock(null);
+  };
+
   return (
     <div
-      className="demeurer-editor-pane demeurer-canvas"
-      // Click on empty canvas (paper background) clears selection. The
-      // page-frame absorbs clicks separately so this only fires for
-      // outside clicks.
-      onClick={() => selectBlock(null)}
+      className={
+        "demeurer-editor-pane demeurer-canvas" +
+        (isPreview ? " demeurer-canvas-preview" : "")
+      }
+      onClick={handleEmptyClick}
     >
+      {banner ? <div className="demeurer-canvas-banner">{banner}</div> : null}
       <div
         className="demeurer-canvas-page"
         onClick={(e) => e.stopPropagation()}
       >
         {blocks.length === 0 ? (
           <div className="demeurer-canvas-empty">
-            <p>This page has no blocks yet.</p>
-            <p className="demeurer-canvas-empty-sub">
-              Use the outline on the left to add one.
-            </p>
+            <p>This page has no blocks{isPreview ? " in this version" : " yet"}.</p>
+            {!isPreview ? (
+              <p className="demeurer-canvas-empty-sub">
+                Use the outline on the left to add one.
+              </p>
+            ) : null}
           </div>
         ) : (
           blocks.map((block) => (
             <BlockPlaceholder
               key={block.id}
               block={block}
-              isSelected={selectedBlockId === block.id}
-              onSelect={() => selectBlock(block.id)}
+              isSelected={!isPreview && selectedBlockId === block.id}
+              onSelect={isPreview ? undefined : () => selectBlock(block.id)}
             />
           ))
         )}
@@ -49,7 +71,8 @@ export function Canvas() {
 interface BlockPlaceholderProps {
   block: Block;
   isSelected: boolean;
-  onSelect: () => void;
+  /** Omit to render the placeholder as non-interactive (preview mode). */
+  onSelect?: () => void;
 }
 
 function BlockPlaceholder({
@@ -57,24 +80,34 @@ function BlockPlaceholder({
   isSelected,
   onSelect,
 }: BlockPlaceholderProps) {
+  const interactive = !!onSelect;
   return (
     <div
       className={
         "demeurer-block-placeholder" +
-        (isSelected ? " demeurer-block-placeholder-selected" : "")
+        (isSelected ? " demeurer-block-placeholder-selected" : "") +
+        (!interactive ? " demeurer-block-placeholder-readonly" : "")
       }
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
+      onClick={
+        interactive
+          ? (e) => {
+              e.stopPropagation();
+              onSelect();
+            }
+          : undefined
+      }
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect();
+              }
+            }
+          : undefined
+      }
     >
       <div className="demeurer-block-placeholder-header">
         <span className="demeurer-block-placeholder-type">{block.type}</span>

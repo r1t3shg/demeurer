@@ -1,5 +1,19 @@
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useRef, useState } from "react";
 
+import { handleOutlineDragEnd } from "../../lib/editor/dnd";
 import { newBlockId } from "../../lib/editor/ids";
 import { useEditorStore } from "../../lib/editor/store";
 import type { Block } from "../../lib/editor/types";
@@ -7,12 +21,12 @@ import type { Block } from "../../lib/editor/types";
 /**
  * Outline panel — a tree view of the document's block hierarchy.
  *
- * Click a row to select; hover to reveal a delete affordance. Drag
- * handle is visual-only this segment (real reorder lands in segment 5).
+ * Top-level blocks are sortable via @dnd-kit. The drag handle (six-dot
+ * icon on the left) is the only activator — clicking the row body still
+ * selects the block. Nested children are not sortable in P1.A; that lands
+ * with the section system in P1.B.
  *
  * Tree rendering caps at 2 levels (top-level + their direct children).
- * Anything deeper is rare in practice and adds complexity we don't need
- * until we have a real section system.
  */
 
 const STUB_BLOCKS: { kind: string; label: string; build: () => Block }[] = [
@@ -58,6 +72,15 @@ export function Outline() {
   const addBlock = useEditorStore((s) => s.addBlock);
   const removeBlock = useEditorStore((s) => s.removeBlock);
 
+  // PointerSensor with a 5px activation distance lets a click on the
+  // drag handle still register as a click (e.g. for keyboard focus)
+  // while a real drag motion picks the item up.
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+  );
+
   return (
     <div className="demeurer-editor-pane demeurer-outline">
       <div className="demeurer-pane-header">Outline</div>
@@ -67,21 +90,82 @@ export function Outline() {
             No blocks yet. Use “Add block” below.
           </div>
         ) : (
-          blocks.map((block) => (
-            <OutlineNode
-              key={block.id}
-              block={block}
-              depth={0}
-              selectedBlockId={selectedBlockId}
-              onSelect={selectBlock}
-              onDelete={removeBlock}
-            />
-          ))
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleOutlineDragEnd}
+          >
+            <SortableContext
+              items={blocks.map((b) => b.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {blocks.map((block) => (
+                <SortableOutlineNode
+                  key={block.id}
+                  block={block}
+                  selectedBlockId={selectedBlockId}
+                  onSelect={selectBlock}
+                  onDelete={removeBlock}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         )}
       </div>
       <div className="demeurer-outline-footer">
         <AddBlockMenu onAdd={(b) => addBlock(b)} />
       </div>
+    </div>
+  );
+}
+
+interface SortableOutlineNodeProps {
+  block: Block;
+  selectedBlockId: string | null;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function SortableOutlineNode({
+  block,
+  selectedBlockId,
+  onSelect,
+  onDelete,
+}: SortableOutlineNodeProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({ id: block.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    boxShadow: isDragging ? "0 6px 16px rgba(0, 0, 0, 0.15)" : undefined,
+    // Lift the dragged row above the rest so its shadow isn't clipped
+    // by the next row's background.
+    zIndex: isDragging ? 2 : undefined,
+    position: "relative",
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <OutlineNode
+        block={block}
+        depth={0}
+        selectedBlockId={selectedBlockId}
+        onSelect={onSelect}
+        onDelete={onDelete}
+        dragHandleRef={setActivatorNodeRef}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        isOver={isOver}
+      />
     </div>
   );
 }
@@ -92,6 +176,10 @@ interface OutlineNodeProps {
   selectedBlockId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  // Top-level rows receive dnd-kit handle wiring; nested rows don't.
+  dragHandleRef?: (node: HTMLElement | null) => void;
+  dragHandleProps?: Record<string, unknown>;
+  isOver?: boolean;
 }
 
 function OutlineNode({
@@ -100,6 +188,9 @@ function OutlineNode({
   selectedBlockId,
   onSelect,
   onDelete,
+  dragHandleRef,
+  dragHandleProps,
+  isOver,
 }: OutlineNodeProps) {
   const [expanded, setExpanded] = useState(true);
   const isSelected = selectedBlockId === block.id;
@@ -111,15 +202,21 @@ function OutlineNode({
       <div
         className={
           "demeurer-outline-row" +
-          (isSelected ? " demeurer-outline-row-selected" : "")
+          (isSelected ? " demeurer-outline-row-selected" : "") +
+          (isOver ? " demeurer-outline-row-over" : "")
         }
         style={{ paddingLeft: 8 + depth * 16 }}
         onClick={() => onSelect(block.id)}
       >
         <span
+          ref={dragHandleRef}
           className="demeurer-drag-handle"
-          aria-hidden="true"
-          title="Drag to reorder (coming soon)"
+          aria-label={dragHandleRef ? "Drag to reorder" : undefined}
+          // Don't let the drag handle's mousedown bubble into the row
+          // and trigger a selection — the click selection only fires
+          // when the user actually clicks (no drag occurred).
+          onClick={(e) => e.stopPropagation()}
+          {...(dragHandleProps ?? {})}
         >
           <DragDots />
         </span>

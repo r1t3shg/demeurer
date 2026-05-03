@@ -7,10 +7,14 @@ import { SaveIndicator } from "../components/SaveIndicator";
 import { Canvas } from "../components/editor/Canvas";
 import { Outline } from "../components/editor/Outline";
 import { Properties } from "../components/editor/Properties";
+import {
+  VersionHistory,
+  type VersionRecord,
+} from "../components/editor/VersionHistory";
 import db from "../db.server";
 import { useDraftInspection, useDraftMirror } from "../lib/editor/recovery";
 import { useEditorStore } from "../lib/editor/store";
-import type { Block } from "../lib/editor/types";
+import type { Block, EditorDocument } from "../lib/editor/types";
 import { useAutosave } from "../lib/editor/useAutosave";
 import { getShopFromRequest } from "../lib/shop.server";
 import "../styles/editor.css";
@@ -158,6 +162,23 @@ export default function PageEditor() {
   const canUndo = historyCursor > 0;
   const canRedo = futureLength > 0;
 
+  // Version history modal + preview state. Preview is purely a parent-
+  // level swap on the Canvas — the store never sees the previewed doc,
+  // so exiting preview returns to live edits unchanged.
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<EditorDocument | null>(null);
+  const [previewVersion, setPreviewVersion] = useState<VersionRecord | null>(
+    null,
+  );
+
+  const handlePreview = (
+    doc: EditorDocument | null,
+    version: VersionRecord | null,
+  ) => {
+    setPreviewDoc(doc);
+    setPreviewVersion(version);
+  };
+
   const handleRestore = () => {
     if (recovery.kind !== "recoverable") return;
     loadDocument(recovery.draft.document);
@@ -171,21 +192,25 @@ export default function PageEditor() {
     setRecoveryDecided(true);
   };
 
-  // Manual QA helper for crash recovery — kept as a code comment so we
-  // can re-enable it for the localStorage path without rewriting it:
-  //
-  //   const simulateCrash = () => {
-  //     useEditorStore.setState({
-  //       document: { version: 1, blocks: [] },
-  //       isDirty: false, lastSavedAt: null,
-  //       history: [], future: [], historyCursor: 0,
-  //       selectedBlockId: null,
-  //     });
-  //     window.location.reload();
-  //   };
-  //
-  // Re-add a button in the toolbar that calls simulateCrash() to test
-  // the recovery banner end-to-end.
+  // Manual QA helper for crash recovery. Re-enabled in dev for the
+  // P1.A chaos test (scripts/p1a-chaos-test.md). Strips in-memory state
+  // without calling markSaved, then reloads — the localStorage draft
+  // remains and the recovery banner should appear on the next mount.
+  // Vite replaces import.meta.env.PROD at build time, so this branch
+  // is dead-code-eliminated from production bundles.
+  const isDev = !import.meta.env.PROD;
+  const simulateCrash = () => {
+    useEditorStore.setState({
+      document: { version: 1, blocks: [] },
+      isDirty: false,
+      lastSavedAt: null,
+      history: [],
+      future: [],
+      historyCursor: 0,
+      selectedBlockId: null,
+    });
+    window.location.reload();
+  };
 
   return (
     <s-page heading={page.title}>
@@ -211,6 +236,12 @@ export default function PageEditor() {
         >
           Redo
         </s-button>
+        <s-button onClick={() => setHistoryOpen(true)}>History</s-button>
+        {isDev ? (
+          <s-button tone="critical" onClick={simulateCrash}>
+            Simulate crash (dev)
+          </s-button>
+        ) : null}
       </div>
 
       {recovery.kind === "recoverable" && !recoveryDecided ? (
@@ -232,9 +263,33 @@ export default function PageEditor() {
 
       <div className="demeurer-editor-grid">
         <Outline />
-        <Canvas />
+        <Canvas
+          previewDocument={previewDoc ?? undefined}
+          banner={
+            previewDoc && previewVersion ? (
+              <>
+                <span>
+                  Previewing version from{" "}
+                  {new Date(previewVersion.createdAt).toLocaleString()}
+                  {previewVersion.label ? ` — “${previewVersion.label}”` : ""}.
+                </span>
+                <s-button onClick={() => handlePreview(null, null)}>
+                  Exit preview
+                </s-button>
+              </>
+            ) : undefined
+          }
+        />
         <Properties />
       </div>
+
+      <VersionHistory
+        pageId={page.id}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onPreview={handlePreview}
+        previewVersionId={previewVersion?.id ?? null}
+      />
     </s-page>
   );
 }
