@@ -13,10 +13,22 @@
  *  3. The console log below will pick it up automatically.
  */
 
+import { ctaBandDefinition } from "./cta-band";
+import { faqDefinition } from "./faq";
+import { featureListDefinition } from "./feature-list";
 import { heroDefinition } from "./hero";
+import { imageTextDefinition } from "./image-text";
+import { logoWallDefinition } from "./logo-wall";
 import { listSections, registerSection } from "./registry";
+import { testimonialDefinition } from "./testimonial";
 
 registerSection(heroDefinition);
+registerSection(featureListDefinition);
+registerSection(imageTextDefinition);
+registerSection(testimonialDefinition);
+registerSection(faqDefinition);
+registerSection(ctaBandDefinition);
+registerSection(logoWallDefinition);
 
 // Make registration visible in dev — silently failing to register a
 // section produces a confusing "Unknown section" canvas error that's

@@ -570,6 +570,45 @@
   padding: 12px;
   border-top: 1px solid var(--p-color-border, #e1e3e5);
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.demeurer-properties-liquid {
+  border-top: 1px solid var(--p-color-border, #e1e3e5);
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.02);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.demeurer-properties-liquid__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--p-color-text-secondary, #6d7175);
+  margin: 12px 0 4px;
+}
+
+.demeurer-properties-liquid__label:first-child {
+  margin-top: 0;
+}
+
+.demeurer-properties-liquid__pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  background: #1a1a1a;
+  color: #e0e0e0;
+  padding: 10px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 /* ===== Canvas preview banner (version history) ===== */
