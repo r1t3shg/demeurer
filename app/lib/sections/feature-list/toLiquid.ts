@@ -133,6 +133,12 @@ export function featureListToLiquid(
     else
       assign cols = 3
   endcase
+  assign text_align_logical = 'center'
+  if section.settings.alignment == 'left'
+    assign text_align_logical = 'start'
+  elsif section.settings.alignment == 'right'
+    assign text_align_logical = 'end'
+  endif
 -%}`.trim();
 
   const template = `
@@ -141,10 +147,10 @@ ${colsLiquid}
   class="demeurer-feature-list demeurer-feature-list--{{ section.settings.alignment }}"
   style="
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
-    text-align: {{ section.settings.alignment }};
+    text-align: {{ text_align_logical }};
   "
 >
-  <div class="demeurer-feature-list__inner" style="max-width: 1200px; margin: 0 auto;">
+  <div class="demeurer-feature-list__inner" style="max-width: 1200px; margin-inline: auto;">
     {%- if section.settings.heading != blank -%}
       <h2 class="demeurer-feature-list__heading">{{ section.settings.heading | escape }}</h2>
     {%- endif -%}

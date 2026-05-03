@@ -22,15 +22,15 @@ export function ImageTextRender({ props, themeTokens }: SectionRenderProps) {
     backgroundColor: themeTokens.colors.background,
     color: themeTokens.colors.text,
     paddingTop: p.padding.top,
-    paddingRight: p.padding.right,
     paddingBottom: p.padding.bottom,
-    paddingLeft: p.padding.left,
+    paddingInlineStart: p.padding.left,
+    paddingInlineEnd: p.padding.right,
     fontFamily: themeTokens.typography.bodyFont,
   };
 
   const innerStyle: React.CSSProperties = {
     maxWidth: 1200,
-    margin: "0 auto",
+    marginInline: "auto",
     display: "flex",
     flexDirection: p.imagePosition === "right" ? "row-reverse" : "row",
     flexWrap: "wrap",
@@ -39,15 +39,19 @@ export function ImageTextRender({ props, themeTokens }: SectionRenderProps) {
   };
 
   const imagePct = Number(p.imageWidth);
-  const imageStyle: React.CSSProperties = {
+  const imageWrapStyle: React.CSSProperties = {
     flex: `1 1 ${imagePct}%`,
     minWidth: 240,
     aspectRatio: "4 / 3",
     backgroundColor: PLACEHOLDER_BG,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
     borderRadius: 8,
-    backgroundImage: p.image ? `url(${p.image})` : undefined,
+    overflow: "hidden",
+  };
+  const imageStyle: React.CSSProperties = {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block",
   };
 
   const textStyle: React.CSSProperties = {
@@ -84,7 +88,11 @@ export function ImageTextRender({ props, themeTokens }: SectionRenderProps) {
   return (
     <section style={containerStyle}>
       <div style={innerStyle}>
-        <div style={imageStyle} role="img" aria-label={p.heading || "Section image"} />
+        <div style={imageWrapStyle}>
+          {p.image ? (
+            <img src={p.image} alt={p.imageAlt} style={imageStyle} />
+          ) : null}
+        </div>
         <div style={textStyle}>
           {p.heading ? <h2 style={headingStyle}>{p.heading}</h2> : null}
           {p.body ? (

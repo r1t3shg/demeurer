@@ -24,6 +24,7 @@ export function imageTextToLiquid(
     class: `demeurer-section demeurer-${ctx.sectionType}`,
     settings: [
       { type: "image_picker", id: "image", label: "Image" },
+      { type: "text", id: "image_alt", label: "Image alt text", default: imageTextDefaults.imageAlt },
       {
         type: "select",
         id: "image_position",
@@ -77,7 +78,7 @@ export function imageTextToLiquid(
     class="demeurer-image-text__inner"
     style="
       max-width: 1200px;
-      margin: 0 auto;
+      margin-inline: auto;
       display: flex;
       flex-direction: {{ flex_dir }};
       flex-wrap: wrap;
@@ -87,10 +88,12 @@ export function imageTextToLiquid(
   >
     <div class="demeurer-image-text__image" style="flex: 1 1 {{ image_pct }}%; min-width: 240px;">
       {%- if section.settings.image != blank -%}
+        {%- assign alt = section.settings.image_alt | default: section.settings.image.alt | default: '' -%}
         {{ section.settings.image | image_url: width: 1600 | image_tag:
           loading: 'lazy',
           widths: '400, 600, 800, 1200, 1600',
           sizes: '(min-width: 768px) 50vw, 100vw',
+          alt: alt,
           class: 'demeurer-image-text__img',
           style: 'width: 100%; height: auto; border-radius: 8px; display: block;'
         }}

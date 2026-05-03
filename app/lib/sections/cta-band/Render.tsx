@@ -19,16 +19,16 @@ export function CtaBandRender({ props, themeTokens }: SectionRenderProps) {
     backgroundColor: p.background,
     color: textColor,
     paddingTop: p.padding.top,
-    paddingRight: p.padding.right,
+    paddingInlineEnd: p.padding.right,
     paddingBottom: p.padding.bottom,
-    paddingLeft: p.padding.left,
+    paddingInlineStart: p.padding.left,
     fontFamily: themeTokens.typography.bodyFont,
-    textAlign: p.alignment,
+    textAlign: p.alignment === "left" ? "start" : "center",
   };
 
   const innerStyle: React.CSSProperties = {
     maxWidth: 720,
-    margin: p.alignment === "center" ? "0 auto" : undefined,
+    marginInline: p.alignment === "center" ? "auto" : undefined,
   };
 
   const headingStyle: React.CSSProperties = {

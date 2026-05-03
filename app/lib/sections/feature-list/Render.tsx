@@ -22,16 +22,16 @@ export function FeatureListRender({ props, themeTokens }: SectionRenderProps) {
     backgroundColor: themeTokens.colors.background,
     color: themeTokens.colors.text,
     paddingTop: p.padding.top,
-    paddingRight: p.padding.right,
+    paddingInlineEnd: p.padding.right,
     paddingBottom: p.padding.bottom,
-    paddingLeft: p.padding.left,
-    textAlign: p.alignment,
+    paddingInlineStart: p.padding.left,
+    textAlign: p.alignment === "left" ? "start" : "center",
     fontFamily: themeTokens.typography.bodyFont,
   };
 
   const innerStyle: React.CSSProperties = {
     maxWidth: 1200,
-    margin: "0 auto",
+    marginInline: "auto",
   };
 
   const headingStyle: React.CSSProperties = {
@@ -65,7 +65,12 @@ export function FeatureListRender({ props, themeTokens }: SectionRenderProps) {
     flexDirection: p.layout === "list" ? "row" : "column",
     alignItems: p.layout === "list" ? "flex-start" : p.alignment === "center" ? "center" : "flex-start",
     gap: themeTokens.spacing.unit * 1.5,
-    textAlign: p.layout === "list" ? "left" : p.alignment,
+    textAlign:
+      p.layout === "list"
+        ? "start"
+        : p.alignment === "left"
+          ? "start"
+          : "center",
   };
 
   const iconStyle: React.CSSProperties = {

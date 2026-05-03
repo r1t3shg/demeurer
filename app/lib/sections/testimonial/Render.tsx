@@ -16,15 +16,15 @@ export function TestimonialRender({ props, themeTokens }: SectionRenderProps) {
     backgroundColor: themeTokens.colors.background,
     color: themeTokens.colors.text,
     paddingTop: p.padding.top,
-    paddingRight: p.padding.right,
+    paddingInlineEnd: p.padding.right,
     paddingBottom: p.padding.bottom,
-    paddingLeft: p.padding.left,
+    paddingInlineStart: p.padding.left,
     fontFamily: themeTokens.typography.bodyFont,
   };
 
   const innerStyle: React.CSSProperties = {
     maxWidth: 1200,
-    margin: "0 auto",
+    marginInline: "auto",
     textAlign: "center",
   };
 
@@ -47,7 +47,7 @@ export function TestimonialRender({ props, themeTokens }: SectionRenderProps) {
         : "repeat(auto-fit, minmax(280px, 1fr))",
     gap: themeTokens.spacing.unit * 3,
     maxWidth: p.layout === "single" || p.layout === "carousel" ? 720 : "100%",
-    margin: "0 auto",
+    marginInline: "auto",
   };
 
   return (
@@ -88,7 +88,7 @@ function TestimonialCard({
     border: "1px solid rgba(0,0,0,0.08)",
     borderRadius: 8,
     padding: themeTokens.spacing.unit * 3,
-    textAlign: "left",
+    textAlign: "start",
   };
   const quoteStyle: React.CSSProperties = {
     fontFamily: themeTokens.typography.bodyFont,

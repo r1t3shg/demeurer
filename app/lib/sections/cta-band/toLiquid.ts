@@ -69,6 +69,12 @@ export function ctaBandToLiquid(
   if luma < 140
     assign text_color = '#ffffff'
   endif
+  assign text_align_logical = 'center'
+  if section.settings.alignment == 'left'
+    assign text_align_logical = 'start'
+  elsif section.settings.alignment == 'right'
+    assign text_align_logical = 'end'
+  endif
 -%}
 
 <div
@@ -77,10 +83,10 @@ export function ctaBandToLiquid(
     background: {{ bg }};
     color: {{ text_color }};
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
-    text-align: {{ section.settings.alignment }};
+    text-align: {{ text_align_logical }};
   "
 >
-  <div class="demeurer-cta-band__inner" style="max-width: 720px; {% if section.settings.alignment == 'center' %}margin: 0 auto;{% endif %}">
+  <div class="demeurer-cta-band__inner" style="max-width: 720px; {% if section.settings.alignment == 'center' %}margin-inline: auto;{% endif %}">
     {%- if section.settings.heading != blank -%}
       <h2 class="demeurer-cta-band__heading" style="margin: 0; line-height: 1.2;">{{ section.settings.heading | escape }}</h2>
     {%- endif -%}

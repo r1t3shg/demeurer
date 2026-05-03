@@ -126,16 +126,22 @@ export function heroToLiquid(
   assign padding_top = section.settings.padding_top | default: ${props.padding.top}
   assign padding_bottom = section.settings.padding_bottom | default: ${props.padding.bottom}
   assign padding_x = section.settings.padding_x | default: ${props.padding.left}
+  assign text_align_logical = 'center'
+  if alignment == 'left'
+    assign text_align_logical = 'start'
+  elsif alignment == 'right'
+    assign text_align_logical = 'end'
+  endif
 -%}
 
 <div
   class="demeurer-hero demeurer-hero--{{ alignment }}"
   style="
     padding-top: {{ padding_top }}px;
-    padding-right: {{ padding_x }}px;
+    padding-inline-end: {{ padding_x }}px;
     padding-bottom: {{ padding_bottom }}px;
-    padding-left: {{ padding_x }}px;
-    text-align: {{ alignment }};
+    padding-inline-start: {{ padding_x }}px;
+    text-align: {{ text_align_logical }};
     position: relative;
     overflow: hidden;
     min-height: 240px;
@@ -162,7 +168,7 @@ export function heroToLiquid(
     ></div>
   {%- endif -%}
 
-  <div class="demeurer-hero__content" style="position: relative; z-index: 2; max-width: 720px; margin: 0 auto;">
+  <div class="demeurer-hero__content" style="position: relative; z-index: 2; max-width: 720px; margin-inline: auto;">
     <h1 class="demeurer-hero__heading">{{ heading | escape }}</h1>
     {%- if section.settings.subheading != blank -%}
       <div class="demeurer-hero__subheading">{{ section.settings.subheading }}</div>

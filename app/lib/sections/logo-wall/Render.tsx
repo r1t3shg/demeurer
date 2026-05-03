@@ -16,9 +16,9 @@ export function LogoWallRender({ props, themeTokens }: SectionRenderProps) {
 
   const containerStyle: React.CSSProperties = {
     paddingTop: p.padding.top,
-    paddingRight: p.padding.right,
+    paddingInlineEnd: p.padding.right,
     paddingBottom: p.padding.bottom,
-    paddingLeft: p.padding.left,
+    paddingInlineStart: p.padding.left,
     fontFamily: themeTokens.typography.bodyFont,
     backgroundColor: themeTokens.colors.background,
     color: themeTokens.colors.text,

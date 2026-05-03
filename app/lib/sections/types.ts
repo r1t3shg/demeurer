@@ -194,6 +194,12 @@ export interface ToLiquidContext {
 
 /* --------------------------- Section definition ------------------------- */
 
+/** A surfaced accessibility / readability issue for the inspector. */
+export interface SectionQualityIssue {
+  severity: "info" | "warning" | "error";
+  message: string;
+}
+
 export interface SectionDefinition {
   /** Unique identifier used in `Block.type` and the Shopify schema. */
   type: string;
@@ -214,6 +220,15 @@ export interface SectionDefinition {
     props: Record<string, unknown>,
     ctx: ToLiquidContext,
   ) => LiquidOutput;
+  /**
+   * Optional: surface accessibility / readability issues (low contrast,
+   * missing alt text, etc.) for the Properties panel quality indicator.
+   * Pure function — must not access DOM or storage.
+   */
+  qualityCheck?: (
+    props: Record<string, unknown>,
+    themeTokens: ThemeTokens,
+  ) => SectionQualityIssue[];
 }
 
 /** Helper type for components that pass children through (e.g. wrappers). */

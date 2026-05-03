@@ -1,6 +1,45 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. This document tracks foundation (P0) and editor data-loss-proofing (P1.A), and what comes next.
+A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), and the section library (P1.B), and what comes next.
+
+---
+
+## P1.B — Section library, schema-driven inspectors, RTL/a11y, Lighthouse ✅ Code complete
+
+**Section count: 12.** All sections render in the canvas, expose typed property inspectors via `SectionSchema`, compile to native Liquid via `toLiquid`, and survive uninstall. `Page.source` block trees containing any combination of these are now publish-ready (publish flow itself is P2).
+
+| Sections (12) | Type | Category |
+|---|---|---|
+| Hero | `hero` | content |
+| CTA band | `cta-band` | content |
+| Image + text | `image-text` | content |
+| Feature list | `feature-list` | content |
+| Logo wall | `logo-wall` | content |
+| Testimonial | `testimonial` | content |
+| FAQ | `faq` | content |
+| Pricing | `pricing` | content |
+| Video | `video` | media |
+| Form | `form` | form |
+| Spacer | `spacer` | layout |
+| Custom HTML | `html` | advanced |
+
+**Cross-cutting:**
+- **Schema-driven inspectors.** `app/lib/sections/types.ts` defines `SectionSchema` + field kinds (text, richtext, color, range, select, image, list-of-tier, list-of-question, list-of-feature, list-of-logo, list-of-testimonial, list-of-field). `Properties.tsx` dispatches via `FieldRenderer` — no per-section UI code in the inspector.
+- **Section quality indicator.** Each section may declare an optional `qualityCheck(props, themeTokens) → SectionQualityIssue[]`. `Properties.tsx` renders a green/yellow/red banner. Wired today: hero (text/bg contrast, missing heading w/ bg image), cta-band (no AA-readable text color), image-text (missing alt), html (always warning per HTML_WARNING_TEXT). WCAG AA contrast calculator lives at `app/lib/sections/_shared/quality.ts` (`parseHex`, `contrastRatio`, `meetsAA`).
+- **RTL audit.** All hardcoded `padding-left`/`padding-right`/`margin: 0 auto`/`text-align: left|right` in section Renders and Liquid templates converted to CSS logical properties (`paddingInlineStart`/`paddingInlineEnd`/`marginInline`/`textAlign: start|end`). Padding *data* objects (`{ top, right, bottom, left }`) are unchanged — those are model property names.
+- **Pricing toggle JS.** The only carve-out from commitment #2: ~15 lines of inline JS, scoped to `[data-section-id="{{ section.id }}"]`, only emitted when the billing toggle is enabled. No external scripts; fails closed (yearly state ignored if JS off).
+- **Form section uses Shopify native form handlers.** `{% form 'contact' %}` / `{% form 'create_customer' %}` / `{% form 'customer' %}` (newsletter via tagged customer) — submissions flow through Shopify, not Demeurer servers. Pages keep working after uninstall.
+- **Lighthouse 95+ checklist.** Manual methodology in `scripts/lighthouse-check.md`; results template (with expected baselines pending real-store measurement) in `scripts/lighthouse-results.md`. Real measurement is blocked on the publish flow (P2).
+
+### Lighthouse status
+
+Real measurement requires a working publish pipeline (P2). Until then, `lighthouse-results.md` records *expected* mobile scores per section based on the architecture (no JS for FAQ/Spacer/Form/Image+text/CTA band; lazy-loaded images for Hero/Logo wall/Testimonial; iframe cost flagged for Video; merchant-controlled risk flagged for Custom HTML). Pricing's billing-toggle JS is the only sub-95 risk, expected ~94 mobile.
+
+### Known limitations carried into P2
+- **Testimonial carousel preview** is static in the canvas (Liquid output uses scroll-snap; canvas only shows the first slide).
+- **Logo wall marquee** animation only runs in published Liquid; canvas renders a static row.
+- **Form preview** does not actually submit (canvas success message is a UI hint).
+- **Custom HTML** is unsanitized by design; the trust contract is surfaced via the always-on yellow warning banner in Properties.
 
 ---
 
@@ -151,4 +190,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-03 (P1.A code complete; chaos test pending manual run)
+**Last updated:** 2026-05-03 (P1.B segment 5 code complete: 12 sections, RTL+a11y pass, Lighthouse checklist+results templates. Real Lighthouse measurement blocked on publish pipeline.)

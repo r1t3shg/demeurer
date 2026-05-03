@@ -1,7 +1,8 @@
-import type { SectionDefinition } from "../types";
+import type { SectionDefinition, SectionQualityIssue } from "../types";
 import { ImageTextRender } from "./Render";
 import {
   IMAGE_TEXT_TYPE,
+  coerceImageTextProps,
   imageTextDefaults,
   imageTextSchema,
 } from "./schema";
@@ -16,4 +17,15 @@ export const imageTextDefinition: SectionDefinition = {
   defaults: { ...imageTextDefaults },
   Render: ImageTextRender,
   toLiquid: imageTextToLiquid,
+  qualityCheck: (props) => {
+    const p = coerceImageTextProps(props);
+    const issues: SectionQualityIssue[] = [];
+    if (p.image && !p.imageAlt.trim()) {
+      issues.push({
+        severity: "warning",
+        message: "Image alt text is empty. Add a description so screen readers can convey the image.",
+      });
+    }
+    return issues;
+  },
 };

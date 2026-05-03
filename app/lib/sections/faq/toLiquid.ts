@@ -59,15 +59,23 @@ export function faqToLiquid(
   };
 
   const template = `
+{%- liquid
+  assign text_align_logical = 'center'
+  if section.settings.alignment == 'left'
+    assign text_align_logical = 'start'
+  elsif section.settings.alignment == 'right'
+    assign text_align_logical = 'end'
+  endif
+-%}
 <div
   class="demeurer-faq"
   style="
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
   "
 >
-  <div class="demeurer-faq__inner" style="max-width: 800px; margin: 0 auto;">
+  <div class="demeurer-faq__inner" style="max-width: 800px; margin-inline: auto;">
     {%- if section.settings.heading != blank -%}
-      <h2 class="demeurer-faq__heading" style="text-align: {{ section.settings.alignment }}; margin: 0 0 32px 0;">
+      <h2 class="demeurer-faq__heading" style="text-align: {{ text_align_logical }}; margin: 0 0 32px 0;">
         {{ section.settings.heading | escape }}
       </h2>
     {%- endif -%}

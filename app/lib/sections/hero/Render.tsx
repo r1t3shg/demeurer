@@ -21,11 +21,11 @@ export function HeroRender({ props, themeTokens }: SectionRenderProps) {
     backgroundColor: themeTokens.colors.background,
     color: themeTokens.colors.text,
     paddingTop: p.padding.top,
-    paddingRight: p.padding.right,
+    paddingInlineEnd: p.padding.right,
     paddingBottom: p.padding.bottom,
-    paddingLeft: p.padding.left,
+    paddingInlineStart: p.padding.left,
     overflow: "hidden",
-    textAlign: p.alignment,
+    textAlign: p.alignment === "left" ? "start" : "center",
     minHeight: 240,
     display: "flex",
     alignItems: "center",
@@ -62,7 +62,7 @@ export function HeroRender({ props, themeTokens }: SectionRenderProps) {
     zIndex: 2,
     maxWidth: 720,
     width: "100%",
-    margin: p.alignment === "center" ? "0 auto" : undefined,
+    marginInline: p.alignment === "center" ? "auto" : undefined,
   };
 
   const headingStyle: React.CSSProperties = {

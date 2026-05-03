@@ -17,22 +17,22 @@ export function FaqRender({ props, themeTokens }: SectionRenderProps) {
     backgroundColor: themeTokens.colors.background,
     color: themeTokens.colors.text,
     paddingTop: p.padding.top,
-    paddingRight: p.padding.right,
+    paddingInlineEnd: p.padding.right,
     paddingBottom: p.padding.bottom,
-    paddingLeft: p.padding.left,
+    paddingInlineStart: p.padding.left,
     fontFamily: themeTokens.typography.bodyFont,
   };
 
   const innerStyle: React.CSSProperties = {
     maxWidth: 800,
-    margin: "0 auto",
+    marginInline: "auto",
   };
 
   const headingStyle: React.CSSProperties = {
     fontFamily: themeTokens.typography.headingFont,
     fontSize: `${1.875 * themeTokens.typography.scale}rem`,
     margin: `0 0 ${themeTokens.spacing.unit * 4}px 0`,
-    textAlign: p.alignment,
+    textAlign: p.alignment === "left" ? "start" : "center",
   };
 
   const detailsStyle: React.CSSProperties = {

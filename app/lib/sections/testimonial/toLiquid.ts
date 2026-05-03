@@ -95,7 +95,7 @@ export function testimonialToLiquid(
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
   "
 >
-  <div class="demeurer-testimonial__inner" style="max-width: 1200px; margin: 0 auto; text-align: center;">
+  <div class="demeurer-testimonial__inner" style="max-width: 1200px; margin-inline: auto; text-align: center;">
     {%- if section.settings.heading != blank -%}
       <h2 class="demeurer-testimonial__heading" style="margin: 0 0 32px 0;">{{ section.settings.heading | escape }}</h2>
     {%- endif -%}
@@ -103,7 +103,7 @@ export function testimonialToLiquid(
     {%- if layout == 'single' -%}
       {%- assign first = section.blocks | first -%}
       {%- if first -%}
-        <div style="max-width: 720px; margin: 0 auto;">
+        <div style="max-width: 720px; margin-inline: auto;">
           {%- render 'demeurer-testimonial-card', block: first -%}
         </div>
       {%- endif -%}
@@ -155,7 +155,7 @@ export function testimonialToLiquid(
   endif
 -%}
 
-<div class="demeurer-testimonial__card" style="background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; padding: 24px; text-align: left; height: 100%;">
+<div class="demeurer-testimonial__card" style="background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; padding: 24px; text-align: start; height: 100%;">
   {%- if rating > 0 -%}
     <div class="demeurer-testimonial__rating" aria-label="Rating: {{ rating }} out of 5" style="font-size: 14px; margin-bottom: 8px;">
       {%- for i in (1..5) -%}

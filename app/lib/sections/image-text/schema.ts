@@ -24,6 +24,7 @@ const WIDTHS: ImageWidth[] = ["40", "50", "60"];
 export const imageTextSchema: SectionSchema = {
   fields: [
     { kind: "image", key: "image", label: "Image" },
+    { kind: "text", key: "imageAlt", label: "Image alt text" },
     {
       kind: "select",
       key: "imagePosition",
@@ -55,6 +56,7 @@ export const imageTextSchema: SectionSchema = {
 
 export interface ImageTextProps {
   image: string;
+  imageAlt: string;
   imagePosition: ImagePosition;
   imageWidth: ImageWidth;
   heading: string;
@@ -66,6 +68,7 @@ export interface ImageTextProps {
 
 export const imageTextDefaults: ImageTextProps = {
   image: "",
+  imageAlt: "",
   imagePosition: "left",
   imageWidth: "50",
   heading: "Our story",
@@ -81,6 +84,7 @@ export function coerceImageTextProps(
 ): ImageTextProps {
   return {
     image: coerceImageUrl(input.image),
+    imageAlt: coerceString(input.imageAlt, imageTextDefaults.imageAlt),
     imagePosition: coerceEnum<ImagePosition>(
       input.imagePosition,
       POSITIONS,

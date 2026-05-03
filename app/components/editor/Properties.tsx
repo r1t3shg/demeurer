@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useEditorStore } from "../../lib/editor/store";
 import type { Block } from "../../lib/editor/types";
 import { getSection } from "../../lib/sections";
+import type { SectionQualityIssue } from "../../lib/sections/types";
 import { FieldRenderer } from "./fields/FieldRenderer";
+import { useThemeTokens } from "./ThemeTokensContext";
 
 // Vite replaces `process.env.NODE_ENV` at build time, so the entire
 // "Show Liquid" UI is dead-code-eliminated from production bundles.
@@ -33,6 +35,7 @@ export function Properties() {
   const replaceBlockProps = useEditorStore((s) => s.replaceBlockProps);
   const removeBlock = useEditorStore((s) => s.removeBlock);
   const selectBlock = useEditorStore((s) => s.selectBlock);
+  const themeTokens = useThemeTokens();
 
   const block = selectedBlockId ? findBlock(blocks, selectedBlockId) : null;
 
@@ -53,6 +56,27 @@ export function Properties() {
   const handleFieldChange = (key: string, next: unknown) => {
     replaceBlockProps(block.id, { ...block.props, [key]: next });
   };
+
+  // Section quality: run the optional `qualityCheck` and reduce to a
+  // single severity bucket. Errors override warnings override info.
+  // Wrapped in try/catch so a buggy check doesn't break the inspector.
+  let qualityIssues: SectionQualityIssue[] = [];
+  if (def?.qualityCheck) {
+    try {
+      qualityIssues = def.qualityCheck(block.props, themeTokens);
+    } catch {
+      qualityIssues = [];
+    }
+  }
+  const errorCount = qualityIssues.filter((i) => i.severity === "error").length;
+  const warningCount = qualityIssues.filter((i) => i.severity === "warning").length;
+  const totalIssues = errorCount + warningCount;
+  const qualityLevel: "good" | "warning" | "error" =
+    errorCount > 0 || totalIssues >= 2
+      ? "error"
+      : warningCount > 0
+        ? "warning"
+        : "good";
 
   // Compile to Liquid on demand for the dev-only inspector. Wrapped in
   // try/catch so a section's broken `toLiquid` doesn't take down the
@@ -87,6 +111,36 @@ export function Properties() {
           id: …{block.id.slice(-6)}
         </div>
       </div>
+
+      {def?.qualityCheck ? (
+        <div
+          className={`demeurer-quality demeurer-quality--${qualityLevel}`}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="demeurer-quality__row">
+            <span className="demeurer-quality__icon" aria-hidden="true">
+              {qualityLevel === "good" ? "✓" : qualityLevel === "warning" ? "!" : "✕"}
+            </span>
+            <span className="demeurer-quality__title">
+              {qualityLevel === "good"
+                ? "Section quality: looks good"
+                : qualityLevel === "warning"
+                  ? `Section quality: ${totalIssues} ${totalIssues === 1 ? "issue" : "issues"}`
+                  : `Section quality: needs attention (${totalIssues})`}
+            </span>
+          </div>
+          {qualityIssues.length > 0 ? (
+            <ul className="demeurer-quality__list">
+              {qualityIssues.map((issue, i) => (
+                <li key={i} className={`demeurer-quality__item demeurer-quality__item--${issue.severity}`}>
+                  {issue.message}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="demeurer-properties-fields">
         {def ? (

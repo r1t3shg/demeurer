@@ -16,11 +16,16 @@
 import { ctaBandDefinition } from "./cta-band";
 import { faqDefinition } from "./faq";
 import { featureListDefinition } from "./feature-list";
+import { formDefinition } from "./form";
 import { heroDefinition } from "./hero";
+import { htmlDefinition } from "./html";
 import { imageTextDefinition } from "./image-text";
 import { logoWallDefinition } from "./logo-wall";
+import { pricingDefinition } from "./pricing";
 import { listSections, registerSection } from "./registry";
+import { spacerDefinition } from "./spacer";
 import { testimonialDefinition } from "./testimonial";
+import { videoDefinition } from "./video";
 
 registerSection(heroDefinition);
 registerSection(featureListDefinition);
@@ -29,6 +34,11 @@ registerSection(testimonialDefinition);
 registerSection(faqDefinition);
 registerSection(ctaBandDefinition);
 registerSection(logoWallDefinition);
+registerSection(pricingDefinition);
+registerSection(videoDefinition);
+registerSection(formDefinition);
+registerSection(spacerDefinition);
+registerSection(htmlDefinition);
 
 // Make registration visible in dev — silently failing to register a
 // section produces a confusing "Unknown section" canvas error that's

@@ -5,9 +5,10 @@
  * the registry consumes. Imported by `app/lib/sections/index.ts`.
  */
 
-import type { SectionDefinition } from "../types";
+import { contrastRatio } from "../_shared/quality";
+import type { SectionDefinition, SectionQualityIssue } from "../types";
 import { HeroRender } from "./Render";
-import { HERO_TYPE, heroDefaults, heroSchema } from "./schema";
+import { HERO_TYPE, coerceHeroProps, heroDefaults, heroSchema } from "./schema";
 import { heroToLiquid } from "./toLiquid";
 
 export const heroDefinition: SectionDefinition = {
@@ -19,4 +20,28 @@ export const heroDefinition: SectionDefinition = {
   defaults: { ...heroDefaults },
   Render: HeroRender,
   toLiquid: heroToLiquid,
+  qualityCheck: (props, themeTokens) => {
+    const p = coerceHeroProps(props);
+    const issues: SectionQualityIssue[] = [];
+    // Hero with no background image: theme text vs theme background.
+    if (!p.backgroundImage) {
+      const ratio = contrastRatio(
+        themeTokens.colors.text,
+        themeTokens.colors.background,
+      );
+      if (ratio !== null && ratio < 4.5) {
+        issues.push({
+          severity: "error",
+          message: `Heading text contrast is ${ratio.toFixed(2)}:1 against the theme background — needs 4.5:1 for WCAG AA. Try a darker text color or a different background.`,
+        });
+      }
+    }
+    if (p.backgroundImage && !p.heading) {
+      issues.push({
+        severity: "warning",
+        message: "Background image is set but the hero has no heading — screen reader users won't know what this section is about.",
+      });
+    }
+    return issues;
+  },
 };

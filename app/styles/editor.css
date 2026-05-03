@@ -575,6 +575,68 @@
   gap: 8px;
 }
 
+.demeurer-quality {
+  margin: 8px 12px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border-width: 1px;
+  border-style: solid;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.demeurer-quality--good {
+  background: rgba(16, 128, 64, 0.06);
+  border-color: rgba(16, 128, 64, 0.25);
+  color: #0e6b3a;
+}
+
+.demeurer-quality--warning {
+  background: rgba(176, 110, 0, 0.07);
+  border-color: rgba(176, 110, 0, 0.3);
+  color: #7a4d00;
+}
+
+.demeurer-quality--error {
+  background: rgba(176, 30, 30, 0.07);
+  border-color: rgba(176, 30, 30, 0.3);
+  color: #952020;
+}
+
+.demeurer-quality__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.demeurer-quality__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: currentColor;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.demeurer-quality__list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.demeurer-quality__item {
+  font-weight: 400;
+  padding-inline-start: 26px;
+}
+
 .demeurer-properties-liquid {
   border-top: 1px solid var(--p-color-border, #e1e3e5);
   padding: 12px;
