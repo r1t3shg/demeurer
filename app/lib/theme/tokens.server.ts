@@ -93,6 +93,19 @@ export function clearThemeTokensCache(shop?: string): void {
   else cache.clear();
 }
 
+/**
+ * Read the cached tokens for a shop without making a network call.
+ * The preview route runs without an admin client (it's gated by an
+ * HMAC preview token), so it relies on the editor loader having
+ * primed the cache moments earlier. If the cache is empty or stale,
+ * we return defaults — the canvas degrades gracefully.
+ */
+export function getCachedThemeTokensOrDefault(shop: string): ThemeTokensResult {
+  const cached = cache.get(shop);
+  if (cached) return cached.result;
+  return DEFAULT_RESULT;
+}
+
 const QUERY = /* GraphQL */ `
   query DemeurerMainTheme {
     themes(first: 1, roles: [MAIN]) {

@@ -19,6 +19,10 @@ import type { Block, EditorDocument } from "../lib/editor/types";
 import { useAutosave } from "../lib/editor/useAutosave";
 import { authenticate } from "../shopify.server";
 import { getThemeTokens } from "../lib/theme/tokens.server";
+import {
+  buildPreviewQuery,
+  signPreviewToken,
+} from "../lib/preview/token.server";
 import "../styles/editor.css";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
@@ -54,6 +58,14 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   // returned on error so a broken theme fetch doesn't break the editor.
   const theme = await getThemeTokens(admin, shop);
 
+  // HMAC-signed query the canvas iframe will append to /preview/<pageId>.
+  // The preview route can't go through App Bridge, so it verifies this
+  // token instead. Tokens last ~10 minutes; the iframe is reissued on
+  // every editor mount so a long session can't expire mid-edit.
+  const previewQuery = buildPreviewQuery(
+    signPreviewToken({ pageId: page.id, shop }),
+  );
+
   return {
     page: {
       id: page.id,
@@ -67,11 +79,12 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       updatedAt: page.updatedAt.toISOString(),
     },
     theme,
+    previewQuery,
   };
 };
 
 export default function PageEditor() {
-  const { page, theme } = useLoaderData<typeof loader>();
+  const { page, theme, previewQuery } = useLoaderData<typeof loader>();
 
   const isDirty = useEditorStore((s) => s.isDirty);
   const historyCursor = useEditorStore((s) => s.historyCursor);
@@ -277,6 +290,8 @@ export default function PageEditor() {
         <Outline />
         <Canvas
           themeTokens={theme.tokens}
+          pageId={page.id}
+          previewQuery={previewQuery}
           previewDocument={previewDoc ?? undefined}
           banner={
             previewDoc && previewVersion ? (

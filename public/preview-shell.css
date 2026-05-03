@@ -1,0 +1,100 @@
+/*
+ * Editor-only styles for the Demeurer canvas iframe.
+ *
+ * IMPORTANT: This file is loaded ONLY inside the preview iframe at
+ * /preview/<pageId>. It MUST NEVER be referenced from compiled Liquid
+ * output. If you find yourself adding a `<link rel="stylesheet"
+ * href="/preview-shell.css">` outside this iframe, stop — that breaks
+ * commitment #2 (no runtime JS / asset injection on the live storefront).
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body.demeurer-preview {
+  background: #fff;
+  cursor: default;
+}
+
+#demeurer-canvas {
+  position: relative;
+}
+
+/* Each block. The hover/selection chrome lives here, NOT inside the
+ * section's own DOM, so themes can't accidentally style our outlines. */
+
+.demeurer-block {
+  position: relative;
+  cursor: pointer;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
+  transition: outline-color 80ms ease;
+}
+
+.demeurer-block:hover {
+  outline: 1px solid rgba(26, 115, 232, 0.6);
+}
+
+.demeurer-block.is-selected {
+  outline: 2px solid #1a73e8;
+  outline-offset: -2px;
+}
+
+/* Empty state */
+
+.demeurer-preview-empty {
+  padding: 96px 24px;
+  text-align: center;
+  color: #6d7175;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+}
+
+/* Unknown / error blocks */
+
+.demeurer-preview-unknown,
+.demeurer-preview-error {
+  padding: 16px;
+  margin: 8px;
+  background: #fff0f0;
+  color: #b3261e;
+  border: 1px solid #f5c6c6;
+  border-radius: 6px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+}
+
+/* Full-page error fallback rendered when the loader bails out. */
+
+body.demeurer-preview-error-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #f6f6f7;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.demeurer-preview-error-card {
+  background: #fff;
+  padding: 24px 32px;
+  border-radius: 8px;
+  border: 1px solid #e1e3e5;
+  max-width: 520px;
+  text-align: center;
+}
+
+.demeurer-preview-error-card h1 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #202223;
+}
+
+.demeurer-preview-error-card p {
+  margin: 0;
+  color: #6d7175;
+  font-size: 14px;
+}

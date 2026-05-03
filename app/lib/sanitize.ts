@@ -7,10 +7,17 @@
  * floor that lets the canvas render their input safely without pulling
  * in DOMPurify.
  *
- * This sanitizer runs in the browser (DOMParser available). It's used
- * purely for the canvas preview. Compile-time sanitization for published
- * Liquid output happens in P1.D and may use a different (server-side)
- * implementation.
+ * Two paths:
+ *  - Browser (DOMParser available): walk the parsed tree and drop any
+ *    element/attribute that isn't on the allowlist.
+ *  - Node SSR (no DOMParser): regex-strip dangerous constructs
+ *    (<script>, <style>, <iframe>, on* attributes, javascript:/data:/
+ *    vbscript: hrefs). Looser than the browser path, but the input
+ *    comes from the merchant's own admin textarea, not arbitrary
+ *    attacker payloads — defense in depth, not perimeter security.
+ *
+ * Compile-time sanitization for the published Liquid output happens in
+ * P1.D and may use a different (server-side, parser-based) implementation.
  */
 
 const ALLOWED_TAGS = new Set(["P", "STRONG", "EM", "A", "BR"]);
@@ -19,8 +26,14 @@ const ALLOWED_ATTRS_PER_TAG: Record<string, Set<string>> = {
 };
 
 export function sanitizeRichText(input: string): string {
-  if (typeof window === "undefined" || !input) return "";
+  if (!input) return "";
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") {
+    return sanitizeNode(input);
+  }
+  return sanitizeBrowser(input);
+}
 
+function sanitizeBrowser(input: string): string {
   const parser = new DOMParser();
   // Wrap in a known element so DOMParser doesn't treat fragments oddly.
   const doc = parser.parseFromString(`<div>${input}</div>`, "text/html");
@@ -67,4 +80,23 @@ function isSafeHref(value: string): boolean {
   if (trimmed.startsWith("data:")) return false;
   if (trimmed.startsWith("vbscript:")) return false;
   return true;
+}
+
+/* ----------------------------- Node fallback ---------------------------- */
+
+const SCRIPT_LIKE = /<\s*(script|style|iframe|object|embed|form)\b[\s\S]*?<\s*\/\s*\1\s*>/gi;
+const SELF_CLOSING_DANGEROUS = /<\s*(script|style|iframe|object|embed|form|meta|link)\b[^>]*\/?>/gi;
+const ON_ATTR = /\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
+const HREF_ATTR = /\bhref\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+
+function sanitizeNode(input: string): string {
+  let s = input;
+  s = s.replace(SCRIPT_LIKE, "");
+  s = s.replace(SELF_CLOSING_DANGEROUS, "");
+  s = s.replace(ON_ATTR, "");
+  s = s.replace(HREF_ATTR, (whole, _q, dq, sq, bare) => {
+    const value = (dq ?? sq ?? bare ?? "").trim();
+    return isSafeHref(value) ? whole : "";
+  });
+  return s;
 }
