@@ -11,12 +11,15 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import * as LucideIcons from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { handleOutlineDragEnd } from "../../lib/editor/dnd";
 import { newBlockId } from "../../lib/editor/ids";
 import { useEditorStore } from "../../lib/editor/store";
 import type { Block } from "../../lib/editor/types";
+import { listSectionsByCategory } from "../../lib/sections";
+import type { SectionCategory, SectionDefinition } from "../../lib/sections";
 
 /**
  * Outline panel — a tree view of the document's block hierarchy.
@@ -29,41 +32,23 @@ import type { Block } from "../../lib/editor/types";
  * Tree rendering caps at 2 levels (top-level + their direct children).
  */
 
-const STUB_BLOCKS: { kind: string; label: string; build: () => Block }[] = [
-  {
-    kind: "hero",
-    label: "Add stub hero",
-    build: () => ({
-      id: newBlockId(),
-      type: "hero",
-      props: { title: "Hero title", body: "Hero body text." },
-      children: [],
-    }),
-  },
-  {
-    kind: "text",
-    label: "Add stub text",
-    build: () => ({
-      id: newBlockId(),
-      type: "text",
-      props: { text: "Lorem ipsum dolor sit amet." },
-      children: [],
-    }),
-  },
-  {
-    kind: "image",
-    label: "Add stub image",
-    build: () => ({
-      id: newBlockId(),
-      type: "image",
-      props: {
-        src: "https://placehold.co/1200x600",
-        alt: "Placeholder image",
-      },
-      children: [],
-    }),
-  },
-];
+const CATEGORY_LABELS: Record<SectionCategory, string> = {
+  layout: "Layout",
+  content: "Content",
+  media: "Media",
+  form: "Form",
+  advanced: "Advanced",
+};
+
+/** Build a fresh Block from a section definition with its declared defaults. */
+function buildBlockFromSection(def: SectionDefinition): Block {
+  return {
+    id: newBlockId(),
+    type: def.type,
+    props: { ...def.defaults },
+    children: [],
+  };
+}
 
 export function Outline() {
   const blocks = useEditorStore((s) => s.document.blocks);
@@ -312,6 +297,18 @@ function AddBlockMenu({ onAdd }: AddBlockMenuProps) {
     };
   }, [open]);
 
+  // Re-read the registry every render — sections register at module load
+  // so this is stable, but doing it inline keeps the picker honest as
+  // sections are added in later segments.
+  const grouped = listSectionsByCategory();
+  const orderedCategories: SectionCategory[] = [
+    "layout",
+    "content",
+    "media",
+    "form",
+    "advanced",
+  ];
+
   return (
     <div className="demeurer-add-menu" ref={containerRef}>
       <button
@@ -320,28 +317,57 @@ function AddBlockMenu({ onAdd }: AddBlockMenuProps) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        + Add block
+        + Add section
       </button>
       {open ? (
         <div role="menu" className="demeurer-add-popover">
-          {STUB_BLOCKS.map((entry) => (
-            <button
-              key={entry.kind}
-              type="button"
-              role="menuitem"
-              className="demeurer-add-item"
-              onClick={() => {
-                onAdd(entry.build());
-                setOpen(false);
-              }}
-            >
-              {entry.label}
-            </button>
-          ))}
+          {orderedCategories.map((cat) => {
+            const sections = grouped[cat];
+            if (sections.length === 0) return null;
+            return (
+              <div key={cat} className="demeurer-add-group">
+                <div className="demeurer-add-group-label">
+                  {CATEGORY_LABELS[cat]}
+                </div>
+                {sections.map((def) => (
+                  <button
+                    key={def.type}
+                    type="button"
+                    role="menuitem"
+                    className="demeurer-add-item"
+                    onClick={() => {
+                      onAdd(buildBlockFromSection(def));
+                      setOpen(false);
+                    }}
+                  >
+                    <SectionIcon name={def.icon} />
+                    <span className="demeurer-add-item-label">{def.label}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </div>
   );
+}
+
+/**
+ * Look up a lucide-react icon by name. Falls back to the `Box` icon if
+ * the name isn't found, since a missing icon shouldn't break the picker.
+ */
+function SectionIcon({ name }: { name: string }) {
+  // The lucide-react module exposes every icon as a named export. We
+  // index it by string here; the cast is unavoidable because the export
+  // map is too large to enumerate in types.
+  const icons = LucideIcons as unknown as Record<
+    string,
+    React.ComponentType<{ size?: number; "aria-hidden"?: boolean }> | undefined
+  >;
+  const Icon = icons[name] ?? icons.Box;
+  if (!Icon) return null;
+  return <Icon size={16} aria-hidden />;
 }
 
 function DragDots() {
