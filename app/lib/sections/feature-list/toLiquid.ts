@@ -12,9 +12,9 @@
  * the lucide package itself).
  */
 
-import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
-import { liquidString } from "../_shared/coerce";
+import type { PropsByBreakpoint } from "../../editor/types.ts";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types.ts";
+import { liquidString } from "../_shared/coerce.ts";
 import {
   emitResponsiveCSS,
   emitVisibilityCSS,
@@ -22,8 +22,8 @@ import {
   textAlignLogical,
   wrapStyle,
   type CssPropMap,
-} from "../_shared/responsive-css";
-import { FEATURE_ICONS, coerceFeatureListProps, featureListDefaults } from "./schema";
+} from "../_shared/responsive-css.ts";
+import { FEATURE_ICONS, coerceFeatureListProps, featureListDefaults } from "./schema.ts";
 
 /**
  * Inline SVG path data for the curated icon set. Sourced from lucide.dev

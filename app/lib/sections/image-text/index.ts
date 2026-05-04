@@ -1,12 +1,12 @@
-import type { SectionDefinition, SectionQualityIssue } from "../types";
-import { ImageTextRender } from "./Render";
+import type { SectionDefinition, SectionQualityIssue } from "../types.ts";
+import { ImageTextRender } from "./Render.ts";
 import {
   IMAGE_TEXT_TYPE,
   coerceImageTextProps,
   imageTextDefaults,
   imageTextSchema,
-} from "./schema";
-import { imageTextToLiquid } from "./toLiquid";
+} from "./schema.ts";
+import { imageTextToLiquid } from "./toLiquid.ts";
 
 export const imageTextDefinition: SectionDefinition = {
   type: IMAGE_TEXT_TYPE,

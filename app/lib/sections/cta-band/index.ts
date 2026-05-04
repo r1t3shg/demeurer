@@ -1,8 +1,8 @@
-import { contrastRatio } from "../_shared/quality";
-import type { SectionDefinition, SectionQualityIssue } from "../types";
-import { CtaBandRender } from "./Render";
-import { CTA_BAND_TYPE, coerceCtaBandProps, ctaBandDefaults, ctaBandSchema } from "./schema";
-import { ctaBandToLiquid } from "./toLiquid";
+import { contrastRatio } from "../_shared/quality.ts";
+import type { SectionDefinition, SectionQualityIssue } from "../types.ts";
+import { CtaBandRender } from "./Render.ts";
+import { CTA_BAND_TYPE, coerceCtaBandProps, ctaBandDefaults, ctaBandSchema } from "./schema.ts";
+import { ctaBandToLiquid } from "./toLiquid.ts";
 
 export const ctaBandDefinition: SectionDefinition = {
   type: CTA_BAND_TYPE,

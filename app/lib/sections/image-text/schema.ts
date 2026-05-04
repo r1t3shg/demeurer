@@ -5,13 +5,13 @@
  * stack on narrow viewports; we leave that to CSS in Render/toLiquid.
  */
 
-import type { SectionSchema, SpacingValue } from "../types";
+import type { SectionSchema, SpacingValue } from "../types.ts";
 import {
   coerceEnum,
   coerceImageUrl,
   coerceSpacing,
   coerceString,
-} from "../_shared/coerce";
+} from "../_shared/coerce.ts";
 
 export const IMAGE_TEXT_TYPE = "image-text";
 

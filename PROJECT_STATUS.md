@@ -1,6 +1,99 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), the section library (P1.B), the responsive design layer (P1.C), and what comes next.
+A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), the section library (P1.B), the responsive design layer (P1.C), the compile pipeline (P1.D segment 1), and what comes next.
+
+---
+
+## P1.D segment 1 — compile pipeline ✅ COMPLETE 2026-05-04
+
+Pure-functional compile from `Page` document → `CompileArtifact`
+(in-memory file set). No theme writes yet (segment 2). The artifact
+follows the **shared-section-file** model: one
+`sections/demeurer-{type}.liquid` per used section type, one
+`templates/{page|product}.demeurer-{handle}.json` per page.
+
+### The architectural shift
+
+Before this segment, every page got one section file per block, with
+per-block scope CSS, hero values, and overrides all baked into the
+Liquid template (P1.B/P1.C `toLiquid` chain). After this segment, every
+section TYPE owns one shared, parameterless Liquid file. Per-page
+customization rides in `templates/page.demeurer-{handle}.json`, which
+calls the section once per block and supplies its values via
+`section.settings`. Responsive CSS rides along as compile-time-baked
+`mobile_styles` / `tablet_styles` / `desktop_styles` settings consumed
+by a `{% style %}` block in the shared section file.
+
+The legacy per-block `toLiquid` functions in `app/lib/sections/<type>/`
+are intentionally left intact as a working reference, but are no longer
+on the publish path.
+
+### What's in place
+
+| Area | Path |
+|------|------|
+| Compile types (`CompileArtifact`, `CompiledFile`, `Diagnostic`, etc.) | `app/lib/compile/types.ts` |
+| sha256 hex helper | `app/lib/compile/hash.ts` |
+| Stable JSON serializer | `app/lib/compile/stable-json.ts` |
+| Editor `Field` → Shopify schema mapping | `app/lib/compile/settings-schema.ts` |
+| `PropsByBreakpoint` → 4 baked CSS strings | `app/lib/compile/responsive-settings.ts` |
+| Per-section template registry (12 sections) | `app/lib/compile/section-templates/{hero,cta-band,image-text,feature-list,logo-wall,testimonial,faq,pricing,video,form,spacer,html}.ts` + `index.ts` |
+| Page template builder | `app/lib/compile/page-template.ts` |
+| Compile orchestrator | `app/lib/compile/compile.ts` |
+| Compile API endpoint | `app/routes/app.api.pages.$id.compile.ts` |
+| Editor "Show compiled output (dev)" modal | `app/components/editor/CompiledOutput.tsx` (gated on `!import.meta.env.PROD`) |
+| Snapshot tests + 5 fixtures + determinism + product-page assertion | `app/lib/compile/__tests__/` |
+| Contract docs | `docs/compile.md` |
+
+### Determinism is non-negotiable
+
+- Section template strings are static literals.
+- Object keys sorted at every level via `stableStringify`.
+- Files sorted by path in the artifact.
+- No timestamps / ids / environment data inside any file's content —
+  `compiledAt` lives on the artifact, never in a file.
+- Settings record built in fixed schema order; compile-only settings
+  appended in fixed order.
+
+The snapshot test suite includes an explicit "compile twice, hashes
+match" assertion. **58 / 58 tests green** (10 new + 48 from P1.C).
+
+### The five compile-only settings
+
+Every section's `{% schema %}` declares (after schema-derived settings)
+`scope_id`, `mobile_styles`, `tablet_styles`, `desktop_styles`,
+`visibility_styles`. All `info: ""` to keep them present in code but
+unobtrusive in the theme editor. The page template fills them; humans
+never touch them.
+
+### Verification of the four architectural commitments
+
+| # | Commitment | Status after P1.D segment 1 |
+|---|------------|---|
+| 1 | Pages keep rendering after uninstall | ✅ Every emitted file is a standalone, hand-readable Liquid section or JSON template. Demeurer can disappear; the storefront keeps rendering from the same files. |
+| 2 | No runtime JS injection from our servers | ✅ Every responsive override is baked compile-time CSS inside the section's `{% style %}` block. The Pricing billing-toggle carve-out (~15 lines, opt-in) is unchanged. |
+| 3 | Pages survive theme updates because they ARE the theme | ✅ Section + template files live in `sections/` and `templates/` of whatever theme the merchant is on; no sandboxed copy. (Actual writes still pending — segment 2.) |
+| 4 | Stop if violating 1–3 | ✅ The compile pipeline is pure-functional with no IO; impossible to violate inadvertently. |
+
+### Trade-off accepted in segment 1
+
+P1.C used `mobileLiquid` so a merchant could nudge a Hero's padding from
+the Shopify theme editor without redeploying from Demeurer. After
+segment 1, mobile values are baked into `mobile_styles`; theme-editor
+edits to spacing/colors are ignored until republish from Demeurer.
+Text/image/url settings remain live (they go through
+`{{ section.settings.X }}`). Documented in `docs/compile.md` as the
+convention.
+
+### Known follow-ups carried into segment 2
+
+- Theme-side reads + diff against `CompileArtifact` for idempotent
+  publish.
+- Asset API client (the actual write).
+- Webhook handlers for `themes/update` / `themes/publish`.
+- The legacy per-block `toLiquid` chain is dead code on the publish
+  path; safe to remove in a dedicated cleanup commit once segment 3
+  confirms the new pipeline.
 
 ---
 
@@ -374,4 +467,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-03 (P1.C COMPLETE: per-breakpoint cascade across all 12 sections, pure CSS responsive output via `app/lib/sections/_shared/responsive-css.ts`, 48 / 48 unit tests green, exit-gate checklist at `scripts/p1c-exit-gate.md`. P1.D — compile pipeline + theme writer — is next.)
+**Last updated:** 2026-05-04 (P1.D segment 1 COMPLETE: pure-functional compile pipeline produces deterministic file artifacts under the shared-section-file model; one `sections/demeurer-{type}.liquid` per used type + one `templates/{page|product}.demeurer-{handle}.json` per page; 58 / 58 tests green including snapshot + determinism + product-page coverage; dev-only "Show compiled output" modal replaces the per-block "Show Liquid" tool. Theme writes still pending in segment 2.)

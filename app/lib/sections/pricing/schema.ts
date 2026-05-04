@@ -12,13 +12,13 @@
  * scoped to the section, and only emitted when the toggle is enabled.
  */
 
-import type { SectionSchema, SpacingValue } from "../types";
+import type { SectionSchema, SpacingValue } from "../types.ts";
 import {
   coerceBoolean,
   coerceList,
   coerceSpacing,
   coerceString,
-} from "../_shared/coerce";
+} from "../_shared/coerce.ts";
 
 export const PRICING_TYPE = "pricing";
 

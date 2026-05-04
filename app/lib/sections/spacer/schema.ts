@@ -7,13 +7,13 @@
  * five sections in a row.
  */
 
-import type { SectionSchema } from "../types";
+import type { SectionSchema } from "../types.ts";
 import {
   coerceBoolean,
   coerceEnum,
   coerceNumber,
   coerceString,
-} from "../_shared/coerce";
+} from "../_shared/coerce.ts";
 
 export const SPACER_TYPE = "spacer";
 

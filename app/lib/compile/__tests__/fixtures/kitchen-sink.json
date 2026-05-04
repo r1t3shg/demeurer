@@ -1,0 +1,77 @@
+{
+  "version": 2,
+  "blocks": [
+    {
+      "id": "blk_hero_cccccccc",
+      "type": "hero",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_ctab_dddddddd",
+      "type": "cta-band",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_imgt_eeeeeeee",
+      "type": "image-text",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_feat_ffffffff",
+      "type": "feature-list",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_logo_gggggggg",
+      "type": "logo-wall",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_test_hhhhhhhh",
+      "type": "testimonial",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_faq_iiiiiiii",
+      "type": "faq",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_pric_jjjjjjjj",
+      "type": "pricing",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_vidd_kkkkkkkk",
+      "type": "video",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_form_llllllll",
+      "type": "form",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_spac_mmmmmmmm",
+      "type": "spacer",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_html_nnnnnnnn",
+      "type": "html",
+      "props": { "mobile": { "html": "<p>Hand-rolled markup.</p>" } },
+      "children": []
+    }
+  ]
+}

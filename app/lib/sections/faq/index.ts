@@ -1,7 +1,7 @@
-import type { SectionDefinition } from "../types";
-import { FaqRender } from "./Render";
-import { FAQ_TYPE, faqDefaults, faqSchema } from "./schema";
-import { faqToLiquid } from "./toLiquid";
+import type { SectionDefinition } from "../types.ts";
+import { FaqRender } from "./Render.ts";
+import { FAQ_TYPE, faqDefaults, faqSchema } from "./schema.ts";
+import { faqToLiquid } from "./toLiquid.ts";
 
 export const faqDefinition: SectionDefinition = {
   type: FAQ_TYPE,

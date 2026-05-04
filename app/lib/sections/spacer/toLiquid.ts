@@ -9,8 +9,8 @@
  * they don't make sense to differ per breakpoint.
  */
 
-import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext } from "../types";
+import type { PropsByBreakpoint } from "../../editor/types.ts";
+import type { LiquidOutput, ToLiquidContext } from "../types.ts";
 import {
   emitResponsiveCSS,
   emitVisibilityCSS,
@@ -18,8 +18,8 @@ import {
   scopeClass,
   wrapStyle,
   type CssPropMap,
-} from "../_shared/responsive-css";
-import { dividerThicknessPx, spacerDefaults } from "./schema";
+} from "../_shared/responsive-css.ts";
+import { dividerThicknessPx, spacerDefaults } from "./schema.ts";
 
 export function spacerToLiquid(
   propsByBreakpoint: PropsByBreakpoint,

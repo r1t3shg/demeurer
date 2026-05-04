@@ -8,7 +8,7 @@
  * sections stay readable.
  */
 
-import type { SpacingValue } from "../types";
+import type { SpacingValue } from "../types.ts";
 
 export function coerceString(input: unknown, fallback: string): string {
   return typeof input === "string" ? input : fallback;

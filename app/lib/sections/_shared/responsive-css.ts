@@ -42,7 +42,7 @@
  * indistinguishable from a hand-written section.
  */
 
-import type { Breakpoint, PropsByBreakpoint } from "../../editor/types";
+import type { Breakpoint, PropsByBreakpoint } from "../../editor/types.ts";
 
 /**
  * One mapping from a section prop to a CSS declaration. The section's

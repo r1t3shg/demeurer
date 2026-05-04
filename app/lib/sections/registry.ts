@@ -7,7 +7,7 @@
  * this registry — they never import section folders directly.
  */
 
-import type { SectionCategory, SectionDefinition } from "./types";
+import type { SectionCategory, SectionDefinition } from "./types.ts";
 
 const registry: Record<string, SectionDefinition> = {};
 

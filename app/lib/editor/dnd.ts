@@ -1,6 +1,6 @@
 import type { DragEndEvent } from "@dnd-kit/core";
 
-import { useEditorStore } from "./store";
+import { useEditorStore } from "./store.ts";
 
 /**
  * Drag-end handler for the outline.

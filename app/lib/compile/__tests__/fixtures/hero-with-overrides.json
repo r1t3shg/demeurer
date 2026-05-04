@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "blocks": [
+    {
+      "id": "blk_hero_bbbbbbbb",
+      "type": "hero",
+      "props": {
+        "mobile": {
+          "heading": "Welcome home",
+          "subheading": "<p>Subhead.</p>",
+          "backgroundImage": "",
+          "alignment": "center",
+          "ctaUrl": "/collections/all",
+          "ctaLabel": "Shop now",
+          "overlayColor": "#00000040",
+          "padding": { "top": 96, "right": 24, "bottom": 96, "left": 24 }
+        },
+        "tablet": {
+          "padding": { "top": 120, "right": 32, "bottom": 120, "left": 32 }
+        }
+      },
+      "children": []
+    }
+  ]
+}

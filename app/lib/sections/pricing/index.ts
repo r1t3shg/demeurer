@@ -1,7 +1,7 @@
-import type { SectionDefinition } from "../types";
-import { PricingRender } from "./Render";
-import { PRICING_TYPE, pricingDefaults, pricingSchema } from "./schema";
-import { pricingToLiquid } from "./toLiquid";
+import type { SectionDefinition } from "../types.ts";
+import { PricingRender } from "./Render.ts";
+import { PRICING_TYPE, pricingDefaults, pricingSchema } from "./schema.ts";
+import { pricingToLiquid } from "./toLiquid.ts";
 
 export const pricingDefinition: SectionDefinition = {
   type: PRICING_TYPE,

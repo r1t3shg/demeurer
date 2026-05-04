@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "blocks": [
+    {
+      "id": "blk_hero_oooooooo",
+      "type": "hero",
+      "props": {
+        "mobile": {},
+        "tablet": { "padding": { "top": 120, "right": 32, "bottom": 120, "left": 32 } },
+        "desktop": { "alignment": "left" }
+      },
+      "children": []
+    },
+    {
+      "id": "blk_ctab_pppppppp",
+      "type": "cta-band",
+      "props": {
+        "mobile": {},
+        "tablet": { "background": "#0f172a" }
+      },
+      "children": []
+    },
+    {
+      "id": "blk_imgt_qqqqqqqq",
+      "type": "image-text",
+      "props": { "mobile": {} },
+      "children": []
+    },
+    {
+      "id": "blk_feat_rrrrrrrr",
+      "type": "feature-list",
+      "props": {
+        "mobile": {},
+        "desktop": { "padding": { "top": 96, "right": 32, "bottom": 96, "left": 32 } }
+      },
+      "children": []
+    },
+    {
+      "id": "blk_spac_ssssssss",
+      "type": "spacer",
+      "props": { "mobile": { "_visibility": false }, "desktop": { "_visibility": true } },
+      "children": []
+    }
+  ]
+}

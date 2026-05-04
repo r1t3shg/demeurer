@@ -6,12 +6,12 @@
  * styled as an outlined button to differentiate from the primary.
  */
 
-import type { SectionSchema, SpacingValue } from "../types";
+import type { SectionSchema, SpacingValue } from "../types.ts";
 import {
   coerceEnum,
   coerceSpacing,
   coerceString,
-} from "../_shared/coerce";
+} from "../_shared/coerce.ts";
 
 export const CTA_BAND_TYPE = "cta-band";
 

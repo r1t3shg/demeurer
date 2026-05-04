@@ -8,14 +8,14 @@
  * noise.
  */
 
-import type { SectionSchema, SpacingValue } from "../types";
+import type { SectionSchema, SpacingValue } from "../types.ts";
 import {
   coerceEnum,
   coerceImageUrl,
   coerceList,
   coerceSpacing,
   coerceString,
-} from "../_shared/coerce";
+} from "../_shared/coerce.ts";
 
 export const LOGO_WALL_TYPE = "logo-wall";
 

@@ -1,11 +1,11 @@
-import type { SectionDefinition } from "../types";
-import { FeatureListRender } from "./Render";
+import type { SectionDefinition } from "../types.ts";
+import { FeatureListRender } from "./Render.ts";
 import {
   FEATURE_LIST_TYPE,
   featureListDefaults,
   featureListSchema,
-} from "./schema";
-import { featureListToLiquid } from "./toLiquid";
+} from "./schema.ts";
+import { featureListToLiquid } from "./toLiquid.ts";
 
 export const featureListDefinition: SectionDefinition = {
   type: FEATURE_LIST_TYPE,

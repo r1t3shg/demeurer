@@ -7,13 +7,13 @@
  * progressive enhancement on every browser since 2014.
  */
 
-import type { SectionSchema, SpacingValue } from "../types";
+import type { SectionSchema, SpacingValue } from "../types.ts";
 import {
   coerceEnum,
   coerceList,
   coerceSpacing,
   coerceString,
-} from "../_shared/coerce";
+} from "../_shared/coerce.ts";
 
 export const FAQ_TYPE = "faq";
 

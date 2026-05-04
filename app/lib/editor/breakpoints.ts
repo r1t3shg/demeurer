@@ -18,7 +18,7 @@
  * validation (`isBlock` / `migrateDocument`).
  */
 
-import type { Breakpoint } from "./types";
+import type { Breakpoint } from "./types.ts";
 
 export interface BreakpointMeta {
   label: string;

@@ -8,17 +8,17 @@
  * sections get.
  */
 
-import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
-import { liquidString } from "../_shared/coerce";
+import type { PropsByBreakpoint } from "../../editor/types.ts";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types.ts";
+import { liquidString } from "../_shared/coerce.ts";
 import {
   emitResponsiveCSS,
   emitVisibilityCSS,
   scopeClass,
   wrapStyle,
   type CssPropMap,
-} from "../_shared/responsive-css";
-import { coerceImageTextProps, imageTextDefaults } from "./schema";
+} from "../_shared/responsive-css.ts";
+import { coerceImageTextProps, imageTextDefaults } from "./schema.ts";
 
 export function imageTextToLiquid(
   propsByBreakpoint: PropsByBreakpoint,

@@ -17,7 +17,7 @@
  * the helpers in this file.
  */
 
-import type { Block, BlockId, Breakpoint } from "./types";
+import type { Block, BlockId, Breakpoint } from "./types.ts";
 import { useEditorStore } from "./store.ts";
 
 interface SetPropOptions {

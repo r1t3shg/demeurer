@@ -12,8 +12,8 @@
  * three months from now.
  */
 
-import type { SectionSchema, SpacingValue } from "../types";
-import { coerceSpacing, coerceString } from "../_shared/coerce";
+import type { SectionSchema, SpacingValue } from "../types.ts";
+import { coerceSpacing, coerceString } from "../_shared/coerce.ts";
 
 export const HTML_TYPE = "html";
 

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { useEditorStore } from "./store";
-import type { EditorDocument } from "./types";
-import { isDocument } from "./types";
+import { useEditorStore } from "./store.ts";
+import type { EditorDocument } from "./types.ts";
+import { isDocument } from "./types.ts";
 
 /**
  * Crash recovery via localStorage.

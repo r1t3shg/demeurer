@@ -1,7 +1,7 @@
-import type { SectionDefinition } from "../types";
-import { SpacerRender } from "./Render";
-import { SPACER_TYPE, spacerDefaults, spacerSchema } from "./schema";
-import { spacerToLiquid } from "./toLiquid";
+import type { SectionDefinition } from "../types.ts";
+import { SpacerRender } from "./Render.ts";
+import { SPACER_TYPE, spacerDefaults, spacerSchema } from "./schema.ts";
+import { spacerToLiquid } from "./toLiquid.ts";
 
 export const spacerDefinition: SectionDefinition = {
   type: SPACER_TYPE,

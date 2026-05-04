@@ -1,7 +1,7 @@
-import type { SectionDefinition } from "../types";
-import { VideoRender } from "./Render";
-import { VIDEO_TYPE, videoDefaults, videoSchema } from "./schema";
-import { videoToLiquid } from "./toLiquid";
+import type { SectionDefinition } from "../types.ts";
+import { VideoRender } from "./Render.ts";
+import { VIDEO_TYPE, videoDefaults, videoSchema } from "./schema.ts";
+import { videoToLiquid } from "./toLiquid.ts";
 
 export const videoDefinition: SectionDefinition = {
   type: VIDEO_TYPE,

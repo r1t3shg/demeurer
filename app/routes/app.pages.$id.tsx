@@ -6,6 +6,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { SaveIndicator } from "../components/SaveIndicator";
 import { BreakpointSwitcher } from "../components/editor/BreakpointSwitcher";
 import { Canvas } from "../components/editor/Canvas";
+import { CompiledOutput } from "../components/editor/CompiledOutput";
 import { Outline } from "../components/editor/Outline";
 import { Properties } from "../components/editor/Properties";
 import { BREAKPOINT_ORDER } from "../lib/editor/breakpoints";
@@ -198,6 +199,7 @@ export default function PageEditor() {
   // level swap on the Canvas — the store never sees the previewed doc,
   // so exiting preview returns to live edits unchanged.
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [compiledOpen, setCompiledOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<EditorDocument | null>(null);
   const [previewVersion, setPreviewVersion] = useState<VersionRecord | null>(
     null,
@@ -278,6 +280,11 @@ export default function PageEditor() {
           isDirty={isDirty}
         />
         {isDev ? (
+          <s-button onClick={() => setCompiledOpen(true)}>
+            Show compiled output (dev)
+          </s-button>
+        ) : null}
+        {isDev ? (
           <s-button tone="critical" onClick={simulateCrash}>
             Simulate crash (dev)
           </s-button>
@@ -342,6 +349,14 @@ export default function PageEditor() {
         onPreview={handlePreview}
         previewVersionId={previewVersion?.id ?? null}
       />
+
+      {isDev ? (
+        <CompiledOutput
+          pageId={page.id}
+          open={compiledOpen}
+          onClose={() => setCompiledOpen(false)}
+        />
+      ) : null}
     </s-page>
     </ThemeTokensContext.Provider>
   );

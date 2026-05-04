@@ -11,18 +11,18 @@
  * URL in the theme editor after publish without a Demeurer rebuild.
  */
 
-import type { PropsByBreakpoint } from "../../editor/types";
-import { liquidString } from "../_shared/coerce";
-import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import type { PropsByBreakpoint } from "../../editor/types.ts";
+import { liquidString } from "../_shared/coerce.ts";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types.ts";
 import {
   emitResponsiveCSS,
   emitVisibilityCSS,
   scopeClass,
   wrapStyle,
   type CssPropMap,
-} from "../_shared/responsive-css";
-import { aspectRatioCss, parseVideoUrl } from "./parse";
-import { coerceVideoProps, videoDefaults } from "./schema";
+} from "../_shared/responsive-css.ts";
+import { aspectRatioCss, parseVideoUrl } from "./parse.ts";
+import { coerceVideoProps, videoDefaults } from "./schema.ts";
 
 export function videoToLiquid(
   propsByBreakpoint: PropsByBreakpoint,

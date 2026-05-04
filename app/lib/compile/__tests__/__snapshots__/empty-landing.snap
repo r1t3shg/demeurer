@@ -1,0 +1,18 @@
+{
+  "artifact": {
+    "files": [
+      {
+        "content": "{\n  \"order\": [],\n  \"sections\": {}\n}\n",
+        "contentHash": "750bd20971ecc66e5ac21ad8eaacf8ade1c85d095ccd0099acf0db3086fd4868",
+        "pageHandle": "empty-landing",
+        "path": "templates/page.demeurer-empty-landing.json",
+        "purpose": "template"
+      }
+    ],
+    "pageHandle": "empty-landing",
+    "pageId": "page_empty-landing",
+    "pageType": "landing",
+    "sourceVersion": 1767225600000
+  },
+  "diagnostics": []
+}

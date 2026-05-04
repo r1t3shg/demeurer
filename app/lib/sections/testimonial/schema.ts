@@ -8,14 +8,14 @@
  * "carousel without JS" — see toLiquid.ts for the comment.
  */
 
-import type { SectionSchema, SpacingValue } from "../types";
+import type { SectionSchema, SpacingValue } from "../types.ts";
 import {
   coerceEnum,
   coerceImageUrl,
   coerceList,
   coerceSpacing,
   coerceString,
-} from "../_shared/coerce";
+} from "../_shared/coerce.ts";
 
 export const TESTIMONIAL_TYPE = "testimonial";
 

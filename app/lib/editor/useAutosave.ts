@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-import { useEditorStore } from "./store";
-import type { EditorDocument } from "./types";
+import { useEditorStore } from "./store.ts";
+import type { EditorDocument } from "./types.ts";
 
 /**
  * Autosave: subscribe to document edits, debounce, POST, retry.

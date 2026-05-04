@@ -11,16 +11,16 @@
  * detect and adapt — out of scope here.
  */
 
-import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import type { PropsByBreakpoint } from "../../editor/types.ts";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types.ts";
 import {
   emitResponsiveCSS,
   emitVisibilityCSS,
   scopeClass,
   wrapStyle,
   type CssPropMap,
-} from "../_shared/responsive-css";
-import { coerceTestimonialProps, testimonialDefaults } from "./schema";
+} from "../_shared/responsive-css.ts";
+import { coerceTestimonialProps, testimonialDefaults } from "./schema.ts";
 
 export function testimonialToLiquid(
   propsByBreakpoint: PropsByBreakpoint,

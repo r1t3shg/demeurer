@@ -10,16 +10,16 @@
  * editor after Demeurer is uninstalled.
  */
 
-import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import type { PropsByBreakpoint } from "../../editor/types.ts";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types.ts";
 import {
   emitResponsiveCSS,
   emitVisibilityCSS,
   scopeClass,
   wrapStyle,
   type CssPropMap,
-} from "../_shared/responsive-css";
-import { coerceHtmlProps, htmlDefaults } from "./schema";
+} from "../_shared/responsive-css.ts";
+import { coerceHtmlProps, htmlDefaults } from "./schema.ts";
 
 export function htmlToLiquid(
   propsByBreakpoint: PropsByBreakpoint,

@@ -7,16 +7,16 @@
  * here because there is none to inject.
  */
 
-import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import type { PropsByBreakpoint } from "../../editor/types.ts";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types.ts";
 import {
   emitResponsiveCSS,
   emitVisibilityCSS,
   scopeClass,
   wrapStyle,
   type CssPropMap,
-} from "../_shared/responsive-css";
-import { coerceFaqProps, faqDefaults } from "./schema";
+} from "../_shared/responsive-css.ts";
+import { coerceFaqProps, faqDefaults } from "./schema.ts";
 
 export function faqToLiquid(
   propsByBreakpoint: PropsByBreakpoint,

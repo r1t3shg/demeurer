@@ -11,16 +11,16 @@
  * editor, matching how Shopify's own logo-list section is authored.
  */
 
-import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import type { PropsByBreakpoint } from "../../editor/types.ts";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types.ts";
 import {
   emitResponsiveCSS,
   emitVisibilityCSS,
   scopeClass,
   wrapStyle,
   type CssPropMap,
-} from "../_shared/responsive-css";
-import { logoHeightPx, logoWallDefaults } from "./schema";
+} from "../_shared/responsive-css.ts";
+import { logoHeightPx, logoWallDefaults } from "./schema.ts";
 
 export function logoWallToLiquid(
   propsByBreakpoint: PropsByBreakpoint,

@@ -1,7 +1,7 @@
-import type { SectionDefinition, SectionQualityIssue } from "../types";
-import { HtmlRender } from "./Render";
-import { HTML_TYPE, HTML_WARNING_TEXT, htmlDefaults, htmlSchema } from "./schema";
-import { htmlToLiquid } from "./toLiquid";
+import type { SectionDefinition, SectionQualityIssue } from "../types.ts";
+import { HtmlRender } from "./Render.ts";
+import { HTML_TYPE, HTML_WARNING_TEXT, htmlDefaults, htmlSchema } from "./schema.ts";
+import { htmlToLiquid } from "./toLiquid.ts";
 
 export const htmlDefinition: SectionDefinition = {
   type: HTML_TYPE,

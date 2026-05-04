@@ -9,14 +9,14 @@
  * POST to a Demeurer endpoint.
  */
 
-import type { SectionSchema, SpacingValue } from "../types";
+import type { SectionSchema, SpacingValue } from "../types.ts";
 import {
   coerceBoolean,
   coerceEnum,
   coerceList,
   coerceSpacing,
   coerceString,
-} from "../_shared/coerce";
+} from "../_shared/coerce.ts";
 
 export const FORM_TYPE = "form";
 

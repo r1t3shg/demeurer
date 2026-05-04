@@ -1,7 +1,7 @@
-import type { SectionDefinition } from "../types";
-import { LogoWallRender } from "./Render";
-import { LOGO_WALL_TYPE, logoWallDefaults, logoWallSchema } from "./schema";
-import { logoWallToLiquid } from "./toLiquid";
+import type { SectionDefinition } from "../types.ts";
+import { LogoWallRender } from "./Render.ts";
+import { LOGO_WALL_TYPE, logoWallDefaults, logoWallSchema } from "./schema.ts";
+import { logoWallToLiquid } from "./toLiquid.ts";
 
 export const logoWallDefinition: SectionDefinition = {
   type: LOGO_WALL_TYPE,

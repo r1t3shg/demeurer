@@ -19,8 +19,8 @@
  *  - All of the above is pure CSS — no JavaScript injected.
  */
 
-import type { PropsByBreakpoint } from "../../editor/types";
-import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import type { PropsByBreakpoint } from "../../editor/types.ts";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types.ts";
 import {
   emitResponsiveCSS,
   emitVisibilityCSS,
@@ -28,8 +28,8 @@ import {
   textAlignLogical,
   wrapStyle,
   type CssPropMap,
-} from "../_shared/responsive-css";
-import { coerceHeroProps, heroDefaults } from "./schema";
+} from "../_shared/responsive-css.ts";
+import { coerceHeroProps, heroDefaults } from "./schema.ts";
 
 export function heroToLiquid(
   propsByBreakpoint: PropsByBreakpoint,

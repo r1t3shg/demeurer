@@ -14,17 +14,17 @@
  * Inline JS: NONE. Form submission is a native browser POST.
  */
 
-import type { PropsByBreakpoint } from "../../editor/types";
-import { liquidString } from "../_shared/coerce";
-import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types";
+import type { PropsByBreakpoint } from "../../editor/types.ts";
+import { liquidString } from "../_shared/coerce.ts";
+import type { LiquidOutput, ToLiquidContext, SpacingValue } from "../types.ts";
 import {
   emitResponsiveCSS,
   emitVisibilityCSS,
   scopeClass,
   wrapStyle,
   type CssPropMap,
-} from "../_shared/responsive-css";
-import { coerceFormProps, fieldHtmlName, formDefaults, splitOptions } from "./schema";
+} from "../_shared/responsive-css.ts";
+import { coerceFormProps, fieldHtmlName, formDefaults, splitOptions } from "./schema.ts";
 
 export function formToLiquid(
   propsByBreakpoint: PropsByBreakpoint,

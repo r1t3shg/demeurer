@@ -1,11 +1,11 @@
-import type { SectionDefinition } from "../types";
-import { TestimonialRender } from "./Render";
+import type { SectionDefinition } from "../types.ts";
+import { TestimonialRender } from "./Render.ts";
 import {
   TESTIMONIAL_TYPE,
   testimonialDefaults,
   testimonialSchema,
-} from "./schema";
-import { testimonialToLiquid } from "./toLiquid";
+} from "./schema.ts";
+import { testimonialToLiquid } from "./toLiquid.ts";
 
 export const testimonialDefinition: SectionDefinition = {
   type: TESTIMONIAL_TYPE,

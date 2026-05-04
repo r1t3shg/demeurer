@@ -1,4 +1,4 @@
-import type { EditorDocument } from "./types";
+import type { EditorDocument } from "./types.ts";
 
 /**
  * Cap on the undo stack. Each entry is a deep snapshot of the document;

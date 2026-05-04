@@ -1,7 +1,7 @@
-import type { SectionDefinition } from "../types";
-import { FormRender } from "./Render";
-import { FORM_TYPE, formDefaults, formSchema } from "./schema";
-import { formToLiquid } from "./toLiquid";
+import type { SectionDefinition } from "../types.ts";
+import { FormRender } from "./Render.ts";
+import { FORM_TYPE, formDefaults, formSchema } from "./schema.ts";
+import { formToLiquid } from "./toLiquid.ts";
 
 export const formDefinition: SectionDefinition = {
   type: FORM_TYPE,

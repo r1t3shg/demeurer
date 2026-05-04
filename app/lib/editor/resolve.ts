@@ -18,7 +18,7 @@
  * allocates one new object per call — unavoidable for a merged view.
  */
 
-import type { Block, Breakpoint } from "./types";
+import type { Block, Breakpoint } from "./types.ts";
 
 /** The breakpoint a resolved value originated from. */
 export type ResolvedSource = Breakpoint;

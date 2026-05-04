@@ -13,19 +13,19 @@
  *  3. The console log below will pick it up automatically.
  */
 
-import { ctaBandDefinition } from "./cta-band";
-import { faqDefinition } from "./faq";
-import { featureListDefinition } from "./feature-list";
-import { formDefinition } from "./form";
-import { heroDefinition } from "./hero";
-import { htmlDefinition } from "./html";
-import { imageTextDefinition } from "./image-text";
-import { logoWallDefinition } from "./logo-wall";
-import { pricingDefinition } from "./pricing";
-import { listSections, registerSection } from "./registry";
-import { spacerDefinition } from "./spacer";
-import { testimonialDefinition } from "./testimonial";
-import { videoDefinition } from "./video";
+import { ctaBandDefinition } from "./cta-band/index.ts";
+import { faqDefinition } from "./faq/index.ts";
+import { featureListDefinition } from "./feature-list/index.ts";
+import { formDefinition } from "./form/index.ts";
+import { heroDefinition } from "./hero/index.ts";
+import { htmlDefinition } from "./html/index.ts";
+import { imageTextDefinition } from "./image-text/index.ts";
+import { logoWallDefinition } from "./logo-wall/index.ts";
+import { pricingDefinition } from "./pricing/index.ts";
+import { listSections, registerSection } from "./registry.ts";
+import { spacerDefinition } from "./spacer/index.ts";
+import { testimonialDefinition } from "./testimonial/index.ts";
+import { videoDefinition } from "./video/index.ts";
 
 registerSection(heroDefinition);
 registerSection(featureListDefinition);
@@ -51,8 +51,8 @@ if (typeof window !== "undefined") {
   );
 }
 
-export { getSection, listSections, listSectionsByCategory } from "./registry";
-export { isResponsiveField } from "./types";
+export { getSection, listSections, listSectionsByCategory } from "./registry.ts";
+export { isResponsiveField } from "./types.ts";
 export type {
   BooleanField,
   ColorField,
@@ -76,4 +76,4 @@ export type {
   ThemeTokens,
   ToLiquidContext,
   UrlField,
-} from "./types";
+} from "./types.ts";

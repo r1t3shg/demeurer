@@ -9,13 +9,13 @@
  * `coerceVideoProps` so the document can never be in a broken state.
  */
 
-import type { SectionSchema, SpacingValue } from "../types";
+import type { SectionSchema, SpacingValue } from "../types.ts";
 import {
   coerceBoolean,
   coerceEnum,
   coerceSpacing,
   coerceString,
-} from "../_shared/coerce";
+} from "../_shared/coerce.ts";
 
 export const VIDEO_TYPE = "video";
 

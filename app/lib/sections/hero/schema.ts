@@ -8,7 +8,7 @@
  *   index.ts    — exports the SectionDefinition
  */
 
-import type { SectionSchema, SpacingValue } from "../types";
+import type { SectionSchema, SpacingValue } from "../types.ts";
 
 export const HERO_TYPE = "hero";
 

@@ -18,7 +18,7 @@
 
 import type { ComponentType, ReactNode } from "react";
 
-import type { PropsByBreakpoint } from "../editor/types";
+import type { PropsByBreakpoint } from "../editor/types.ts";
 
 /** Section icon — a lucide-react icon name (e.g. "Sparkles", "Image"). */
 export type IconName = string;

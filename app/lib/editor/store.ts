@@ -8,7 +8,7 @@ import type {
   Breakpoint,
   EditorDocument,
   PropsByBreakpoint,
-} from "./types";
+} from "./types.ts";
 import { emptyDocument, migrateDocument, wrapMobileProps } from "./types.ts";
 
 /**
