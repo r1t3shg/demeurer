@@ -1,6 +1,188 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), the section library (P1.B), the responsive design layer (P1.C), the compile pipeline (P1.D segment 1), theme reads + drift (P1.D segment 2), the publish pipeline (P1.D segment 3), and what comes next.
+A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), the section library (P1.B), the responsive design layer (P1.C), the compile pipeline (P1.D segment 1), theme reads + drift (P1.D segment 2), the publish pipeline (P1.D segment 3), the merchant-facing publish flow (P1.D segment 4), and what comes next.
+
+---
+
+## P1.D segment 4 — merchant-facing publish flow ✅ COMPLETE (code) 2026-05-04
+
+The product surface for everything segments 1–3 built. Merchants can
+now publish, unpublish, see drift warnings with inline diffs, retry
+partial failures, and audit publish history — all from inside the
+editor. The first time they publish, a brief modal surfaces the
+architectural commitment as a moment of delight.
+
+### What's in place
+
+| Area | Path |
+|------|------|
+| `Publish` model + migration | `prisma/schema.prisma`, `prisma/migrations/20260504175040_add_publishes/` |
+| Client publish-flow state machine | `app/lib/editor/publish-flow.ts` |
+| `useAutosave` extended with `saveNow()` | `app/lib/editor/useAutosave.ts` |
+| Publish button + status line | `app/components/editor/PublishButton.tsx` |
+| Pre-publish dialog (none/minor + major variants with inline `<SimpleDiff>`) | `app/components/editor/PrePublishDialog.tsx` |
+| Publish progress (in-flight banner + success/partial/auth/error surfaces) | `app/components/editor/PublishProgress.tsx` |
+| Action menu (View page / Copy URL / Theme editor deep link / History / Unpublish) | `app/components/editor/PublishMenu.tsx` |
+| Publish history drawer | `app/components/editor/PublishHistory.tsx` |
+| First-publish onboarding modal | `app/components/editor/FirstPublishModal.tsx` |
+| Unpublish confirmation | `app/components/editor/UnpublishConfirm.tsx` |
+| Publish-history API route | `app/routes/app.api.pages.$id.publishes.ts` |
+| Publish route extended: inserts `Publish` row + returns `firstPublish` flag | `app/routes/app.api.pages.$id.publish.ts` |
+| Pages list with "View live" affordance for published pages | `app/routes/app._index.tsx` |
+| Publish-flow tests (8 scenarios) | `app/lib/editor/__tests__/publish-flow.test.ts` |
+
+### Three button shapes (per spec)
+
+- **Unpublished** → primary `Publish page`
+- **Published, clean** → outline `Published` + `▾` menu trigger
+- **Published, dirty** → primary `Update page` + `▾` menu trigger
+
+Status line below shows relative time (`Published 2 minutes ago`),
+unsaved-changes count, or current flow stage (`Saving…` /
+`Checking…` / `Publishing…`).
+
+### Pre-publish dialog gating
+
+- `severity: none / minor` — brief confirm summary (file count by
+  type, optional orphan note, theme name with the
+  "Publishing to a different theme is coming soon" affordance per
+  the spec).
+- `severity: major` — drift warning with one row per drifted file +
+  inline `<SimpleDiff>` (lazy-loaded via `/drift/diff`). Three
+  buttons: **Cancel**, **Keep theme version, abort**, **Replace with
+  my Demeurer version**.
+
+### Result handling
+
+- `success` → toast banner with auto-dismiss + `View page` link;
+  reload after 1.5s to refresh `publishedAt` / `themeId`.
+- `partial_failure` → modal listing failed paths with `Retry` (calls
+  `confirm(true)` since the partial state is now drift on retry).
+- `auth_error` → critical banner with `Refresh` button.
+- `error` → critical banner with `Retry` + technical message.
+- `drift_blocked` mid-confirm → bounces back to the drift dialog
+  with the latest report.
+
+### `Publish` row insertion
+
+Every terminal publish attempt (success or partial_failure) inserts
+a `Publish` row with `themeId`, `themeName`, `status`, `fileCount`,
+`artifactSourceVersion`, and `failedPaths` (JSON array, null on
+success). Pre-flight aborts (`drift_blocked` / `auth_error`) are NOT
+recorded — nothing was written.
+
+The "first publish" gate: `db.publish.count({ where: { shop } })` is
+captured BEFORE the publish; if zero, the response includes
+`firstPublish: true` and the editor pops `FirstPublishModal`.
+
+### Verification of the four architectural commitments
+
+| # | Commitment | Status after P1.D segment 4 |
+|---|------------|---|
+| 1 | Pages keep rendering after uninstall | ✅ Code-side: unchanged from segment 3. Unpublish copy now makes the no-delete commitment visible to the merchant. The first-publish modal makes the no-vendor-lock-in promise explicit. |
+| 2 | No runtime JS injection from our servers | ✅ All publish UI is admin-only React; never reaches the storefront. |
+| 3 | Pages survive theme updates | ✅ Unchanged from segment 3. |
+| 4 | Stop if violating 1–3 | ✅ Unpublish never deletes. Drift is never auto-resolved (UI surfaces the diff and waits for the merchant's decision). |
+
+### First-publish modal — exact rendered text + ASCII layout
+
+(Per the spec's request to deliver this for review without a screenshot.)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  🎉  Your page is live!                                  │
+│                                                          │
+│  Here's something we want you to know:                   │
+│                                                          │
+│  The page you just published is now part of your theme.  │
+│  That means if you cancel Demeurer, your page keeps      │
+│  working. No vendor lock-in. The pages you create with   │
+│  Demeurer are yours to keep.                             │
+│                                                          │
+│  You can audit the files Demeurer created at any time:   │
+│    Online Store → Themes → Edit code →                   │
+│    look for files starting with `demeurer-`.             │
+│                                                          │
+│                                          [  Got it  ]    │
+└─────────────────────────────────────────────────────────┘
+```
+
+The 🎉 in the heading is the only emoji in the entire app. Lives in
+`app/components/editor/FirstPublishModal.tsx` if you want to tweak.
+
+### Architectural concerns surfaced
+
+1. **Schema migration applied in dev.** Production needs `npx prisma
+   migrate deploy` before this segment ships.
+2. **The "first publish" gate is per-shop, not per-user.** If two
+   users on the same shop have never seen it, only the first
+   publisher sees it. Acceptable for MVP — this is positioning copy,
+   not a tutorial.
+3. **`<s-link>` doesn't accept `target` / `rel`.** Used native `<a>`
+   with `className="demeurer-view-live-link"` for storefront links.
+4. **Polaris `<s-menu>` not in the type defs.** The action menu is a
+   small custom CSS popover (`.demeurer-publish-menu`) that closes
+   on outside-click and Escape.
+5. **`useAutosave.saveNow()` failure is a hard stop.** The publish
+   flow surfaces "Couldn't save before publishing" and aborts before
+   touching `/drift` or `/publish`.
+6. **No `@testing-library/react` in deps.** UI rendering correctness
+   is covered by the merchant's manual smoke (segment 3's
+   `scripts/p1d-segment3-smoke.md` extended with publish-UI steps).
+   The data layer + state machine are covered by 86 tests.
+7. **Theme editor deep link** uses the numeric portion of the
+   Shopify gid (`gid://shopify/OnlineStoreTheme/123` → `123`). If
+   the gid format ever changes, the deep link breaks gracefully (it
+   still opens Shopify admin's themes section).
+8. **Successful publish auto-reloads after 1.5s** to refresh the
+   loader's `publishedAt` / `themeId` data. Simpler than wiring
+   React Router `revalidate`, and the merchant just saw the success
+   banner.
+
+### Test coverage
+
+`app/lib/editor/__tests__/publish-flow.test.ts` — **8 / 8 green**:
+
+1. `idle → saving → checking_drift → confirm` (severity: none).
+2. `confirm + acceptDrift=false → publishing → success`.
+3. `saveNow` rejection → `error` stage.
+4. Drift HTTP error → `error` stage.
+5. 207 partial → `partial` stage.
+6. 401 auth → `auth_error` stage.
+7. 409 drift mid-confirm → bounces back to `confirm` with the new
+   report; second `confirm(true)` succeeds.
+8. `cancel()` returns to `idle`.
+
+**Project total: 86 / 86 green** (8 new + 78 from segment 3).
+
+### Manual UI smoke (lives with the merchant)
+
+The architectural test from segment 3 is still the go/no-go gate
+(`scripts/p1d-segment3-smoke.md` step 12). Segment 4 adds these UI
+verifications to the same script (in your dev store):
+
+- Open an unpublished page → primary `Publish page` button visible.
+- Click → pre-publish dialog summarizing what will happen.
+- Confirm → publishing banner → success toast with `View page` link.
+- Visit storefront URL → page renders.
+- First-publish modal appeared (only on the very first publish).
+- Edit page → button transitions to `Update page`.
+- Update → success in 2–5s.
+- Manually edit a Demeurer file in the theme code editor.
+- Click Publish → drift dialog appears with `View changes` link.
+- `View changes` expands the inline diff.
+- Choose `Replace with my Demeurer version` → success.
+- Open `Show publish history` from the menu → see the attempts.
+- Unpublish from the menu → confirmation modal → success.
+- Pages list shows Published/Draft badges + `View live ↗` link.
+
+### Known follow-ups
+
+- `themes/publish` + `themes/update` webhook handlers (re-write
+  Demeurer files when the merchant switches themes).
+- Preview against unpublished/draft themes.
+- Redis-backed publish lock (multi-region).
+- Polaris `<s-menu>` migration if/when it lands in the type defs.
 
 ---
 
@@ -727,4 +909,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-04 (P1.D segment 3 COMPLETE in code: theme writer via `themeFilesUpsert`, apply pipeline with phase ordering, per-page in-memory publish lock, publish + unpublish API routes, ThemeWrite row tracking; 78 / 78 tests green. The architectural uninstall test at `scripts/p1d-segment3-smoke.md` step 12 is BLOCKED ON MERCHANT — it requires manual install/uninstall on the dev store and storefront URL inspection. Publish UI + `themes/*` webhook handlers pending in segment 4.)
+**Last updated:** 2026-05-04 (P1.D segment 4 COMPLETE in code: merchant-facing publish flow with three button states, pre-publish drift dialog with inline diff, partial-failure recovery, publish-history drawer, unpublish confirm, first-publish onboarding modal, "View live" affordances on the pages list; +Publish model and migration; 86 / 86 tests green. The architectural uninstall test from segment 3 still BLOCKED ON MERCHANT. `themes/*` webhook handlers + draft-theme preview pending.)

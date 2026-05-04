@@ -35,6 +35,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   return {
+    shop,
     pages: pages.map((p) => ({
       id: p.id,
       title: p.title,
@@ -45,6 +46,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     })),
   };
 };
+
+function storefrontUrl(
+  shop: string,
+  page: { type: string; handle: string },
+): string {
+  return page.type === "product"
+    ? `https://${shop}/products/${page.handle}`
+    : `https://${shop}/pages/${page.handle}`;
+}
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const shop = await getShopFromRequest(request);
@@ -102,7 +112,7 @@ function formatUpdated(iso: string): string {
 }
 
 export default function PagesIndex() {
-  const { pages } = useLoaderData<typeof loader>();
+  const { pages, shop } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
 
   const error = fetcher.data && "error" in fetcher.data ? fetcher.data : null;
@@ -172,7 +182,17 @@ export default function PagesIndex() {
                   <s-table-cell>{formatUpdated(page.updatedAt)}</s-table-cell>
                   <s-table-cell>
                     {page.publishedAt ? (
-                      <s-badge tone="success">Published</s-badge>
+                      <s-stack direction="inline" gap="small">
+                        <s-badge tone="success">Published</s-badge>
+                        <a
+                          className="demeurer-view-live-link"
+                          href={storefrontUrl(shop, page)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View live ↗
+                        </a>
+                      </s-stack>
                     ) : (
                       <s-badge>Draft</s-badge>
                     )}

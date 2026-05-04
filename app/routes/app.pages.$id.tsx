@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useSearchParams } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -8,8 +8,20 @@ import { BreakpointSwitcher } from "../components/editor/BreakpointSwitcher";
 import { Canvas } from "../components/editor/Canvas";
 import { CompiledOutput } from "../components/editor/CompiledOutput";
 import { DriftPanel } from "../components/editor/DriftPanel";
+import { FirstPublishModal } from "../components/editor/FirstPublishModal";
 import { Outline } from "../components/editor/Outline";
+import { PrePublishDialog } from "../components/editor/PrePublishDialog";
 import { Properties } from "../components/editor/Properties";
+import { PublishButton } from "../components/editor/PublishButton";
+import { PublishHistory } from "../components/editor/PublishHistory";
+import { PublishMenu } from "../components/editor/PublishMenu";
+import { PublishProgress } from "../components/editor/PublishProgress";
+import { UnpublishConfirm } from "../components/editor/UnpublishConfirm";
+import {
+  createPublishFlow,
+  type PublishFlow,
+  type PublishStage,
+} from "../lib/editor/publish-flow";
 import { BREAKPOINT_ORDER } from "../lib/editor/breakpoints";
 import { ThemeTokensContext } from "../components/editor/ThemeTokensContext";
 import {
@@ -73,6 +85,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   return {
     page: {
       id: page.id,
+      shop: page.shop,
       title: page.title,
       type: page.type,
       handle: page.handle,
@@ -101,7 +114,7 @@ export default function PageEditor() {
   const redo = useEditorStore((s) => s.redo);
   const setActiveBreakpoint = useEditorStore((s) => s.setActiveBreakpoint);
 
-  const { saveStatus, lastSavedAt } = useAutosave(page.id);
+  const { saveStatus, lastSavedAt, saveNow } = useAutosave(page.id);
   const { status: recovery, dismiss: dismissRecovery } = useDraftInspection(
     page.id,
     page.updatedAt,
@@ -202,10 +215,107 @@ export default function PageEditor() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [compiledOpen, setCompiledOpen] = useState(false);
   const [driftOpen, setDriftOpen] = useState(false);
+  const [publishMenuOpen, setPublishMenuOpen] = useState(false);
+  const [publishHistoryOpen, setPublishHistoryOpen] = useState(false);
+  const [unpublishOpen, setUnpublishOpen] = useState(false);
+  const [unpublishBusy, setUnpublishBusy] = useState(false);
+  const [firstPublishModalOpen, setFirstPublishModalOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<EditorDocument | null>(null);
   const [previewVersion, setPreviewVersion] = useState<VersionRecord | null>(
     null,
   );
+
+  // Publish flow — one instance per page-id mount.
+  const flowRef = useRef<PublishFlow | null>(null);
+  if (flowRef.current === null) {
+    flowRef.current = createPublishFlow({ pageId: page.id, saveNow });
+  }
+  const flow = flowRef.current;
+  const [publishStage, setPublishStage] = useState<PublishStage>(flow.state);
+  useEffect(() => flow.subscribe(setPublishStage), [flow]);
+
+  // Pop the first-publish modal on a successful publish where the
+  // server says it's the merchant's first time.
+  useEffect(() => {
+    if (publishStage.stage === "success" && publishStage.firstPublish) {
+      setFirstPublishModalOpen(true);
+    }
+  }, [publishStage]);
+
+  // Reload the page-row data on successful publish so publishedAt /
+  // themeId reflect the new state.
+  useEffect(() => {
+    if (publishStage.stage === "success") {
+      // The simplest "refresh page row" is to reload the route. The
+      // editor state is in Zustand + localStorage; the document and
+      // selection survive a reload.
+      // Defer slightly so the success banner is visible first.
+      const t = setTimeout(() => window.location.reload(), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [publishStage.stage]);
+
+  const handleClickPublish = () => {
+    if (
+      publishStage.stage === "idle" ||
+      publishStage.stage === "success" ||
+      publishStage.stage === "error"
+    ) {
+      flow.cancel();
+      void flow.start();
+    }
+  };
+
+  const handleConfirmPublish = (acceptDrift: boolean) => {
+    void flow.confirm(acceptDrift);
+  };
+
+  const handleCancelPublish = () => {
+    flow.cancel();
+  };
+
+  const handleRetryPublish = () => {
+    void flow.retry();
+  };
+
+  const handleDismissProgress = () => {
+    flow.cancel();
+  };
+
+  const storefrontUrl =
+    page.type === "product"
+      ? `https://${page.shop}/products/${page.handle}`
+      : `https://${page.shop}/pages/${page.handle}`;
+
+  // Theme editor deep-link. The theme id from the loader is a Shopify
+  // gid (e.g. `gid://shopify/OnlineStoreTheme/123456`); extract the
+  // numeric portion.
+  const themeIdNumeric = page.themeId
+    ? page.themeId.split("/").pop() ?? page.themeId
+    : "";
+  const themeEditorUrl = themeIdNumeric
+    ? `https://${page.shop}/admin/themes/${themeIdNumeric}/editor?key=templates%2Fpage.demeurer-${page.handle}.json`
+    : `https://${page.shop}/admin/themes`;
+
+  const handleCopyUrl = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(storefrontUrl);
+    }
+  };
+
+  const handleUnpublish = async () => {
+    setUnpublishBusy(true);
+    try {
+      const r = await fetch(`/app/api/pages/${page.id}/unpublish`, {
+        method: "POST",
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      // Reload to refresh `page.publishedAt`.
+      window.location.reload();
+    } catch {
+      setUnpublishBusy(false);
+    }
+  };
 
   const handlePreview = (
     doc: EditorDocument | null,
@@ -254,6 +364,36 @@ export default function PageEditor() {
       <s-button slot="primary-action" href="/app">
         Back to pages
       </s-button>
+
+      <div className="demeurer-publish-toolbar">
+        <div className="demeurer-publish-toolbar__inner">
+          <PublishButton
+            publishedAt={page.publishedAt}
+            updatedAt={page.updatedAt}
+            flow={flow}
+            onClickPublish={handleClickPublish}
+            onToggleMenu={() => setPublishMenuOpen((v) => !v)}
+            menuOpen={publishMenuOpen}
+          />
+          {page.publishedAt ? (
+            <PublishMenu
+              open={publishMenuOpen}
+              storefrontUrl={storefrontUrl}
+              themeEditorUrl={themeEditorUrl}
+              onClose={() => setPublishMenuOpen(false)}
+              onCopyUrl={handleCopyUrl}
+              onShowHistory={() => setPublishHistoryOpen(true)}
+              onUnpublish={() => setUnpublishOpen(true)}
+            />
+          ) : null}
+        </div>
+        <PublishProgress
+          stage={publishStage}
+          storefrontUrl={storefrontUrl}
+          onRetry={handleRetryPublish}
+          onDismiss={handleDismissProgress}
+        />
+      </div>
 
       <div className="demeurer-editor-toolbar">
         <div className="demeurer-editor-toolbar__bp-slot">
@@ -372,6 +512,34 @@ export default function PageEditor() {
           onClose={() => setDriftOpen(false)}
         />
       ) : null}
+
+      <PrePublishDialog
+        pageId={page.id}
+        open={publishStage.stage === "confirm"}
+        report={publishStage.stage === "confirm" ? publishStage.report : null}
+        severity={publishStage.stage === "confirm" ? publishStage.severity : null}
+        onCancel={handleCancelPublish}
+        onConfirm={handleConfirmPublish}
+      />
+
+      <PublishHistory
+        pageId={page.id}
+        open={publishHistoryOpen}
+        onClose={() => setPublishHistoryOpen(false)}
+      />
+
+      <UnpublishConfirm
+        pageTitle={page.title}
+        open={unpublishOpen}
+        busy={unpublishBusy}
+        onCancel={() => setUnpublishOpen(false)}
+        onConfirm={() => void handleUnpublish()}
+      />
+
+      <FirstPublishModal
+        open={firstPublishModalOpen}
+        onClose={() => setFirstPublishModalOpen(false)}
+      />
     </s-page>
     </ThemeTokensContext.Provider>
   );

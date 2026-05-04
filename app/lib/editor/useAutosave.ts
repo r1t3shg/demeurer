@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useEditorStore } from "./store.ts";
 import type { EditorDocument } from "./types.ts";
@@ -31,6 +31,16 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 export interface AutosaveResult {
   saveStatus: SaveStatus;
   lastSavedAt: Date | null;
+  /**
+   * Flush any pending debounced save and resolve when the latest
+   * document is persisted. If nothing is dirty (and no save is in
+   * flight), resolves immediately.
+   *
+   * Used by the publish flow to guarantee the server has the latest
+   * bytes before compile/drift/write. On error, rejects so the
+   * publish flow can surface "couldn't save before publishing."
+   */
+  saveNow: () => Promise<void>;
 }
 
 export function useAutosave(pageId: string): AutosaveResult {
@@ -134,8 +144,36 @@ export function useAutosave(pageId: string): AutosaveResult {
     }
   }
 
+  // `saveNow`: flush any pending debounce and POST the latest document
+  // immediately. Resolves after the response. The publish flow calls
+  // this before drift-checking to guarantee server has the latest bytes.
+  const saveNow = useCallback(async () => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+      debounceTimer.current = null;
+    }
+    if (retryTimer.current) {
+      clearTimeout(retryTimer.current);
+      retryTimer.current = null;
+    }
+    const state = useEditorStore.getState();
+    if (!state.isDirty) {
+      // Nothing to do. If a previous save is in flight, let it finish
+      // — it'll mark clean on success.
+      return;
+    }
+    await saveDocument(pageId, state.document);
+    // saveDocument sets status to "error" on failure. Reflect that
+    // in a thrown rejection so the publish flow can branch.
+    if (useEditorStore.getState().isDirty) {
+      throw new Error("Save failed before publish");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageId]);
+
   return {
     saveStatus,
     lastSavedAt: lastSavedAt ? new Date(lastSavedAt) : null,
+    saveNow,
   };
 }

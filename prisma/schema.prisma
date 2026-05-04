@@ -49,6 +49,7 @@ model Page {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   versions    PageVersion[]
+  publishes   Publish[]
 
   @@unique([shop, handle])
   @@index([shop])
@@ -66,6 +67,31 @@ model PageVersion {
   page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@index([pageId])
+}
+
+// Append-only record of every publish attempt that reached a terminal
+// state (success or partial_failure). Lets the merchant audit history
+// and powers the "first publish" onboarding gate.
+//
+// `drift_blocked` and `auth_error` outcomes are NOT recorded here —
+// those abort before any write happens, so they're not "publish
+// attempts" in the audit sense.
+model Publish {
+  id                    String   @id @default(cuid())
+  shop                  String
+  pageId                String
+  themeId               String
+  themeName             String
+  status                String   // "success" | "partial_failure"
+  fileCount             Int      // number of files actually written
+  artifactSourceVersion Int      // page.updatedAt.getTime() at compile time
+  failedPaths           String?  // JSON array of failed paths; null on success
+  createdAt             DateTime @default(now())
+
+  page                  Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, createdAt])
+  @@index([shop])
 }
 
 // Memory of files Demeurer has written to a merchant's theme.

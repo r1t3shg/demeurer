@@ -99,6 +99,11 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     themeWrites.map((w) => [w.path, { contentHash: w.contentHash }]),
   );
 
+  // Capture the "first publish" gate BEFORE we try to publish — even
+  // a partial publish counts as "they tried it" for onboarding.
+  const isFirstPublish =
+    (await db.publish.count({ where: { shop } })) === 0;
+
   let result;
   try {
     result = await withPublishLock(shop, page.id, () =>
@@ -122,6 +127,29 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     throw err;
   }
 
+  // Record terminal publish attempts (success + partial). Pre-flight
+  // aborts (drift_blocked, auth_error) are NOT recorded — nothing was
+  // written.
+  const isTerminal =
+    result.status === "success" || result.status === "partial_failure";
+  if (isTerminal && result.themeId) {
+    await db.publish.create({
+      data: {
+        shop,
+        pageId: page.id,
+        themeId: result.themeId,
+        themeName: result.themeName ?? "Unknown theme",
+        status: result.status === "success" ? "success" : "partial_failure",
+        fileCount: result.written.length,
+        artifactSourceVersion: page.updatedAt.getTime(),
+        failedPaths:
+          result.failed.length > 0
+            ? JSON.stringify(result.failed.map((f) => f.path))
+            : null,
+      },
+    });
+  }
+
   if (result.status === "success") {
     await db.page.update({
       where: { id: page.id },
@@ -130,7 +158,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         themeId: result.themeId,
       },
     });
-    return Response.json({ ok: true, result });
+    return Response.json({ ok: true, result, firstPublish: isFirstPublish });
   }
 
   if (result.status === "drift_blocked") {
@@ -149,7 +177,12 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
 
   if (result.status === "partial_failure") {
     return Response.json(
-      { ok: false, reason: "partial", result },
+      {
+        ok: false,
+        reason: "partial",
+        result,
+        firstPublish: isFirstPublish,
+      },
       { status: 207 },
     );
   }

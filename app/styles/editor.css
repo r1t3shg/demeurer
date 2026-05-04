@@ -1206,6 +1206,132 @@
   margin: 0;
 }
 
+/* ===== Publish UI (P1.D segment 4) ===== */
+
+.demeurer-publish-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.demeurer-publish-toolbar__inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.demeurer-publish-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.demeurer-publish-button-group {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.demeurer-publish-status {
+  font-size: 12px;
+  color: var(--p-color-text-secondary, #6d7175);
+}
+
+.demeurer-publish-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--p-color-border, #e1e3e5);
+  border-top-color: var(--p-color-text-link, #1a73e8);
+  border-radius: 50%;
+  animation: demeurer-publish-spin 0.8s linear infinite;
+}
+
+@keyframes demeurer-publish-spin {
+  to { transform: rotate(360deg); }
+}
+
+.demeurer-publish-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 240px;
+  background: #fff;
+  border: 1px solid var(--p-color-border, #e1e3e5);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.demeurer-publish-menu__item {
+  background: transparent;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--p-color-text, #202223);
+  text-decoration: none;
+  display: block;
+}
+
+.demeurer-publish-menu__item:hover,
+.demeurer-publish-menu__item:focus-visible {
+  background: var(--p-color-bg-surface-secondary-hover, #f1f2f3);
+  outline: none;
+}
+
+.demeurer-publish-menu__item--critical {
+  color: #b91c1c;
+}
+
+.demeurer-publish-menu__divider {
+  border: 0;
+  border-top: 1px solid var(--p-color-border, #e1e3e5);
+  margin: 4px 0;
+}
+
+.demeurer-prepublish-driftrow {
+  border-left: 3px solid #f59e0b;
+  padding: 6px 10px;
+  background: #fffbeb;
+  border-radius: 4px;
+}
+
+.demeurer-prepublish-diff {
+  margin-top: 8px;
+}
+
+.demeurer-publish-history__row {
+  border-bottom: 1px solid var(--p-color-border, #e1e3e5);
+  padding: 8px 0;
+}
+
+.demeurer-publish-history__row:last-child {
+  border-bottom: 0;
+}
+
+.demeurer-publish-history__failed {
+  margin-top: 6px;
+  padding-left: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #92400e;
+}
+
+.demeurer-publish-history__failed ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
 /* ===== Drift panel (dev tool, P1.D segment 2) ===== */
 
 .demeurer-drift__summary {
