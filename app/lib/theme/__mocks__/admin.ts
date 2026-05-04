@@ -1,20 +1,22 @@
 /**
  * Mock AdminClient for tests.
  *
- * The drift tests can't hit a real Shopify dev store. This stub returns
- * canned GraphQL responses based on the operation it sees in the query
- * string. Three operations are supported (matches the surface in
- * `client.server.ts`):
+ * The drift / writer tests can't hit a real Shopify dev store. This
+ * stub returns canned GraphQL responses based on the operation it
+ * sees in the query string. Operations supported:
  *
- *   - DemeurerPublishedTheme  → themes(roles: [MAIN])
- *   - DemeurerListThemeFiles  → theme(id).files(filenames, first, after)
- *   - DemeurerReadThemeFiles  → theme(id).files(filenames, first) with body
+ *   - DemeurerPublishedTheme    → themes(roles: [MAIN])
+ *   - DemeurerListThemeFiles    → theme(id).files(filenames, first, after)
+ *   - DemeurerReadThemeFiles    → theme(id).files(filenames, first) with body
+ *   - DemeurerWriteThemeFiles   → themeFilesUpsert(themeId, files)
  *
- * Switching on operation name in the query string is fragile; works for
- * our small surface. If theme-client grows we'll move to a typed
- * handler map keyed by operation name.
+ * Switching on operation name in the query string is fragile; works
+ * for our small surface. The mock is stateful — `themeFilesUpsert`
+ * mutates the in-memory file map, so subsequent list/read calls see
+ * the new bytes. This lets apply tests assert end-to-end behavior.
  */
 
+import { md5Hex } from "../../compile/md5.ts";
 import type { AdminClient } from "../client.server.ts";
 
 export interface MockThemeFile {
@@ -32,10 +34,47 @@ export interface MockTheme {
   files: MockThemeFile[];
 }
 
-export function makeMockAdmin(theme: MockTheme | null): AdminClient {
+/** Per-test failure injection: simulate a Shopify userError for a path. */
+export interface MockSimulateFailure {
+  /** Shopify error code, e.g. "INVALID", "ACCESS_DENIED". */
+  code: string;
+  message: string;
+}
+
+export interface MockOptions {
+  /**
+   * If set, every graphql() call returns this HTTP status. Used by the
+   * writer tests to simulate 401 / 5xx.
+   */
+  forceHttpStatus?: number;
+  /**
+   * Map of path → failure to simulate when that path is in a
+   * themeFilesUpsert call. Other paths in the same batch succeed.
+   */
+  simulateFailures?: Record<string, MockSimulateFailure>;
+  /**
+   * Records every theme-write request (in order) for assertions about
+   * batching and phase ordering.
+   */
+  recordWrites?: Array<{ filenames: string[] }>;
+}
+
+export function makeMockAdmin(
+  theme: MockTheme | null,
+  options: MockOptions = {},
+): AdminClient {
   return {
-    async graphql(query, options) {
-      const body = handle(query, options?.variables ?? {}, theme);
+    async graphql(query, callOpts) {
+      if (options.forceHttpStatus && options.forceHttpStatus !== 200) {
+        const status = options.forceHttpStatus;
+        return {
+          status,
+          async json() {
+            return { errors: [{ message: `HTTP ${status}` }] };
+          },
+        };
+      }
+      const body = handle(query, callOpts?.variables ?? {}, theme, options);
       return {
         status: 200,
         async json() {
@@ -50,6 +89,7 @@ function handle(
   query: string,
   variables: Record<string, unknown>,
   theme: MockTheme | null,
+  options: MockOptions = {},
 ): unknown {
   // Match by operation name embedded in the query.
   if (query.includes("DemeurerPublishedTheme")) {
@@ -111,6 +151,91 @@ function handle(
               },
             }
           : null,
+      },
+    };
+  }
+
+  if (query.includes("DemeurerWriteThemeFiles")) {
+    const inputFiles = (variables.files as Array<{
+      filename?: string;
+      body?: { type?: string; value?: string };
+    }>) ?? [];
+    if (options.recordWrites) {
+      options.recordWrites.push({
+        filenames: inputFiles.map((f) => f.filename ?? "?"),
+      });
+    }
+    if (!theme) {
+      return {
+        data: {
+          themeFilesUpsert: {
+            upsertedThemeFiles: [],
+            userErrors: inputFiles.map((f) => ({
+              code: "ACCESS_DENIED",
+              filename: f.filename ?? null,
+              field: ["themeId"],
+              message: "No theme to write to",
+            })),
+          },
+        },
+      };
+    }
+
+    const upserted: Array<{ filename: string; checksumMd5: string; size: number }> = [];
+    const userErrors: Array<{ code: string; filename: string; field: string[]; message: string }> = [];
+
+    for (const f of inputFiles) {
+      const path = f.filename;
+      const value = f.body?.value;
+      if (!path || typeof value !== "string") {
+        userErrors.push({
+          code: "INVALID",
+          filename: path ?? "",
+          field: ["body"],
+          message: "Missing filename or body",
+        });
+        continue;
+      }
+      const sim = options.simulateFailures?.[path];
+      if (sim) {
+        userErrors.push({
+          code: sim.code,
+          filename: path,
+          field: ["files"],
+          message: sim.message,
+        });
+        continue;
+      }
+      // Mutate the in-memory map. New file → push; existing → replace.
+      const md5 = md5Hex(value);
+      const existing = theme.files.findIndex((tf) => tf.path === path);
+      const now = new Date().toISOString();
+      if (existing >= 0) {
+        theme.files[existing] = {
+          path,
+          content: value,
+          contentMd5: md5,
+          size: value.length,
+          updatedAt: now,
+        };
+      } else {
+        theme.files.push({
+          path,
+          content: value,
+          contentMd5: md5,
+          size: value.length,
+          updatedAt: now,
+        });
+      }
+      upserted.push({ filename: path, checksumMd5: md5, size: value.length });
+    }
+
+    return {
+      data: {
+        themeFilesUpsert: {
+          upsertedThemeFiles: upserted,
+          userErrors,
+        },
       },
     };
   }

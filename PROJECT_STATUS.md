@@ -1,6 +1,155 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), the section library (P1.B), the responsive design layer (P1.C), the compile pipeline (P1.D segment 1), theme reads + drift (P1.D segment 2), and what comes next.
+A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), the section library (P1.B), the responsive design layer (P1.C), the compile pipeline (P1.D segment 1), theme reads + drift (P1.D segment 2), the publish pipeline (P1.D segment 3), and what comes next.
+
+---
+
+## P1.D segment 3 — theme writer + publish pipeline ✅ COMPLETE (code) 2026-05-04 — architectural test BLOCKED ON MERCHANT
+
+The **write side** of the Themes API integration. Pages now land in
+the merchant's theme as real Liquid files via Shopify's
+`themeFilesUpsert` mutation, with idempotent writes, per-file write
+tracking (`ThemeWrite` rows), drift gating, and phase-ordered apply
+that keeps the storefront renderable through partial failures.
+
+This is the segment where the architectural commitment — *"the
+merchant uninstalls Demeurer; the page keeps rendering"* — becomes
+testable end-to-end. The agent cannot exercise that test (it requires
+a real dev store + manual install/uninstall + storefront URL visits).
+**The result lives with the merchant.** The protocol is at
+`scripts/p1d-segment3-smoke.md`, step 12.
+
+### What's in place
+
+| Area | Path |
+|------|------|
+| Theme writer (`themeFilesUpsert` wrapper, error classification) | `app/lib/theme/writer.server.ts` |
+| Apply pipeline (drift → batched write → ThemeWrite) | `app/lib/compile/apply.ts` |
+| Per-page publish lock (in-memory, single-process) | `app/lib/compile/publish-lock.server.ts` |
+| Publish API route | `app/routes/app.api.pages.$id.publish.ts` |
+| Unpublish API route (no theme deletes — never destroys) | `app/routes/app.api.pages.$id.unpublish.ts` |
+| Mock admin extended with `themeFilesUpsert` handler | `app/lib/theme/__mocks__/admin.ts` |
+| Writer tests (5 scenarios) | `app/lib/compile/__tests__/writer.test.ts` |
+| Apply tests (7 scenarios) | `app/lib/compile/__tests__/apply.test.ts` |
+| Manual smoke + architectural uninstall protocol | `scripts/p1d-segment3-smoke.md` |
+
+### Phase ordering — the key correctness property
+
+Section files first → snippets → page template **last**. If a section
+write fails mid-publish:
+
+- The **old page template still references the previous-version
+  sections (which still exist)**, so the storefront stays renderable.
+- The new page template is never written until every section it
+  references is confirmed in place.
+- Segment 2's drift detection picks up where the failed publish left
+  off: previously-written files are `tracked` (recorded in
+  `ThemeWrite`, theme matches our last write) so a retry skips them
+  and finishes the remaining batch.
+
+The Themes API has **no multi-file transaction**. Determinism (segment
+1) + per-file write tracking (segment 2) + phase ordering (segment 3)
+are our substitute. Documented in `app/lib/compile/apply.ts`'s
+top-of-file comment.
+
+### Drift gating
+
+Every publish runs the segment 2 drift check first:
+
+- `severity === "major"` (a `drifted` file — manual edit detected) →
+  HTTP 409 `{ ok: false, reason: "drift", report, severity }`.
+  Nothing is written.
+- The merchant retries with `{ "acceptDrift": true }` to overwrite.
+- `severity === "minor"` (orphans only, or `stale`) and `none` proceed
+  to write.
+
+`tracked` modifications (the normal "merchant edited the page,
+publishes again" path) don't contribute to severity — segment 2's
+deliberate three-classification design pays off here.
+
+### Concurrency
+
+In-memory per-`(shop, pageId)` lock at
+`app/lib/compile/publish-lock.server.ts`. A second concurrent publish
+for the same page gets HTTP 409 `publish_in_progress`. Single-process
+only — multi-region deployments will need a Redis-backed advisory
+lock. Limitation documented.
+
+### `Page.publishedAt` and `Page.themeId`
+
+Both fields populated only on **full success**. On `partial_failure`
+the merchant retries; we don't lie about state. `themeId` records the
+theme the page lives on so a future `themes/publish` webhook handler
+(post-segment-4) can reconcile after theme switches. `unpublish`
+clears `publishedAt` but **never deletes theme files** and
+**preserves** `themeId`.
+
+### Verification of the four architectural commitments
+
+| # | Commitment | Status after P1.D segment 3 |
+|---|------------|---|
+| 1 | Pages keep rendering after uninstall | **TESTABLE** — `scripts/p1d-segment3-smoke.md` step 12 is the gate. Code-side: `webhooks.app.uninstalled.tsx` deletes only Session; ThemeWrite + Page + PageVersion + theme files are intentionally untouched. |
+| 2 | No runtime JS injection from our servers | ✅ Writer is server-side only; no JS is ever sent to a storefront. The Pricing toggle carve-out (~15 lines, opt-in, scoped) is unchanged from P1.B. |
+| 3 | Pages survive theme updates because they ARE the theme | ✅ Writes go to the merchant's published theme directly. `Page.themeId` records where; segment 4's webhook will rewrite into newly-published themes. |
+| 4 | Stop if violating 1–3 | ✅ Unpublish never deletes; orphans are never deleted; drift is never auto-resolved (merchant must opt-in). |
+
+### Architectural concerns surfaced
+
+1. **`themeFilesUpsert` requires an exemption from Shopify** beyond
+   the `write_themes` scope. Per Shopify's docs. If the dev store
+   doesn't have the exemption, every publish returns `auth_error`
+   regardless of correctness. The smoke script's step 4 is where this
+   would surface.
+2. **No multi-file transaction.** Phase ordering + idempotency + drift
+   tracking cover it. Retry after partial failure picks up cleanly.
+3. **In-memory lock is single-process only.** Redis advisory lock
+   replacement is a known follow-up.
+4. **`Page.publishedAt` is set only on full success.** Intentional
+   honesty.
+5. **Mock-based `ThemeWrite` testing via dependency injection.**
+   `applyArtifact` accepts a `ThemeWriteStore` interface; tests pass
+   a small in-memory stub. Production passes the real prisma client.
+6. **The architectural uninstall test cannot be agent-run.** Lives
+   with the merchant. Result template at the bottom of the smoke
+   script.
+
+### Test coverage
+
+`app/lib/compile/__tests__/writer.test.ts` — **5 / 5 green**:
+1. Single file success carries Shopify's `checksumMd5`.
+2. 15 files batch into two GraphQL calls (10 + 5).
+3. Per-file `userError` doesn't poison the rest of the batch.
+4. HTTP 401 maps every file in the batch to `errorCode: "auth"`.
+5. `bad_content` classification covers `TOO_LARGE`.
+
+`app/lib/compile/__tests__/apply.test.ts` — **7 / 7 green**:
+1. Empty theme + new page → all written, `ThemeWrite` populated.
+2. Re-publish unchanged → 0 writes, all skipped.
+3. Drift on a section, no `acceptDrift` → `drift_blocked`, nothing
+   written.
+4. Drift + `acceptDrift: true` → overwrite, `ThemeWrite` updated.
+5. Section write fails → phase B + C skipped, `partial_failure`.
+6. Lock contention → second concurrent call throws
+   `PublishInProgressError`.
+7. Phase ordering — sections written before templates.
+
+**Project total: 78 / 78 green** (12 new + 66 from segment 2).
+
+### Manual smoke status
+
+`scripts/p1d-segment3-smoke.md` is ready. Steps 1–11 + step 12 (the
+architectural test) are the merchant's protocol. **Result fields
+empty** until the merchant runs it. The architectural test is the
+go/no-go gate.
+
+### Known follow-ups carried into segment 4
+
+- Publish UI (button + drift confirmation modal). Currently the smoke
+  script uses curl.
+- `themes/publish` + `themes/update` webhook handlers (re-write
+  Demeurer files into newly-published themes).
+- Preview against unpublished/draft themes.
+- Redis-backed publish lock (multi-region).
 
 ---
 
@@ -578,4 +727,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-04 (P1.D segment 2 COMPLETE: theme reads via Shopify GraphQL with wildcard prefix filtering, drift detection with three classifications (drifted / tracked / stale), conflict severity classifier, ThemeWrite tracking table, dev-only "Show drift" modal with hand-rolled line-by-line diff viewer; 66 / 66 tests green. Asset API mutation still pending in segment 3.)
+**Last updated:** 2026-05-04 (P1.D segment 3 COMPLETE in code: theme writer via `themeFilesUpsert`, apply pipeline with phase ordering, per-page in-memory publish lock, publish + unpublish API routes, ThemeWrite row tracking; 78 / 78 tests green. The architectural uninstall test at `scripts/p1d-segment3-smoke.md` step 12 is BLOCKED ON MERCHANT — it requires manual install/uninstall on the dev store and storefront URL inspection. Publish UI + `themes/*` webhook handlers pending in segment 4.)

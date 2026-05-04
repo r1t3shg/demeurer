@@ -255,3 +255,48 @@ Implementation: `app/lib/compile/drift.ts`,
 Dev tool: "Show drift (dev)" button → `DriftPanel` modal with
 line-by-line diff viewer, lazy-loads per-file content via
 `/app/api/pages/{id}/drift/diff?path=...`.
+
+## Publish pipeline (P1.D segment 3)
+
+The apply pipeline closes the loop: compile → drift → write.
+
+```
+Page row
+  → compilePage() → CompileArtifact            (segment 1)
+  → detectDrift() vs published theme           (segment 2)
+  → classifyConflicts() → severity gate
+  → writeThemeFiles() in phases                (segment 3)
+       Phase A: sections/demeurer-*.liquid
+       Phase B: snippets/demeurer-*.liquid
+       Phase C: templates/{page,product}.demeurer-*.json   (LAST)
+  → ThemeWrite.upsert per successful write     (md5 from Shopify)
+  → set Page.publishedAt + Page.themeId        (only on full success)
+```
+
+**Phase ordering is non-negotiable.** If a section write fails, phase
+B and C are skipped — the previous-version page template still
+references its (still-present) sections, so the storefront stays
+renderable. Idempotent retries pick up where we left off because
+`ThemeWrite` records what we wrote and segment 2's drift sees those
+files as `tracked` (skipped on the next publish).
+
+**Drift gating**: `severity === "major"` aborts unless the caller
+opts in via `{ "acceptDrift": true }` on the publish endpoint. We
+never silently overwrite a manual edit.
+
+**Concurrency**: per-`(shop, pageId)` in-memory lock. Second concurrent
+publish gets HTTP 409. Single-process only.
+
+**Unpublish**: clears `Page.publishedAt`. Theme files are
+**intentionally never deleted** — architectural commitment #1.
+`Page.themeId` is preserved.
+
+Implementation: `app/lib/theme/writer.server.ts` (mutation wrapper),
+`app/lib/compile/apply.ts` (orchestration),
+`app/lib/compile/publish-lock.server.ts` (mutex).
+
+Routes: `app/routes/app.api.pages.$id.publish.ts` (POST),
+`app/routes/app.api.pages.$id.unpublish.ts` (POST).
+
+Manual smoke + architectural uninstall test:
+`scripts/p1d-segment3-smoke.md`.
