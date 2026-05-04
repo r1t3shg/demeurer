@@ -221,3 +221,37 @@ The "Show compiled output (dev)" button in the page editor toolbar
 opens a modal with three tabs: Files, Diagnostics, Metrics. Gated by
 `!import.meta.env.PROD` so it dead-codes from the production bundle.
 Replaces the per-block "Show Liquid (dev)" tool from P1.B/P1.C.
+
+## Drift detection (P1.D segment 2)
+
+After compile, segment 2 fetches the merchant's published theme and
+compares each artifact file against the live theme:
+
+```
+CompileArtifact + Theme → DriftReport
+                            │
+                            ├─ newFiles[]         (will be created)
+                            ├─ unchangedFiles[]   (will be skipped)
+                            ├─ modifiedFiles[]    (need write; classified)
+                            └─ orphanFiles[]      (ours, not in artifact; never deleted)
+```
+
+Modified files are classified into:
+
+- **`drifted`** — `ThemeWrite` says we wrote hash X, theme has hash Y ≠ X.
+  Manual edit detected. Major severity.
+- **`tracked`** — `ThemeWrite` matches theme hash; artifact is just newer.
+  Normal publish path. No severity contribution.
+- **`stale`** — no `ThemeWrite` record. Could be drift or first publish.
+  Minor severity (soft warning).
+
+Hash convention: **md5** matches Shopify's `checksumMd5` field. The
+compile artifact's sha256 `contentHash` is internal-only.
+
+Implementation: `app/lib/compile/drift.ts`,
+`app/lib/compile/conflict-severity.ts`,
+`app/lib/theme/client.server.ts`.
+
+Dev tool: "Show drift (dev)" button → `DriftPanel` modal with
+line-by-line diff viewer, lazy-loads per-file content via
+`/app/api/pages/{id}/drift/diff?path=...`.

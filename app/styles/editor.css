@@ -1206,6 +1206,164 @@
   margin: 0;
 }
 
+/* ===== Drift panel (dev tool, P1.D segment 2) ===== */
+
+.demeurer-drift__summary {
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  border: 1px solid;
+}
+
+.demeurer-drift__summary--none {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #14532d;
+}
+
+.demeurer-drift__summary--minor {
+  background: #fefce8;
+  border-color: #fde047;
+  color: #713f12;
+}
+
+.demeurer-drift__summary--major {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #7f1d1d;
+}
+
+.demeurer-drift__severity {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.demeurer-drift__actionable {
+  margin: 8px 0 0;
+  padding: 0 0 0 20px;
+  font-size: 12px;
+}
+
+.demeurer-drift__theme {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.demeurer-drift__group {
+  border: 1px solid var(--p-color-border, #e1e3e5);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+}
+
+.demeurer-drift__group summary {
+  cursor: pointer;
+  font-weight: 600;
+  user-select: none;
+}
+
+.demeurer-drift__group ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.demeurer-drift__group li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.demeurer-drift__sigil {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.demeurer-drift__show-diff {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--p-color-border, #e1e3e5);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.demeurer-drift__diff {
+  margin-top: 16px;
+  border: 1px solid var(--p-color-border, #e1e3e5);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.demeurer-drift__diff header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--p-color-bg-surface-secondary, #f6f6f7);
+  border-bottom: 1px solid var(--p-color-border, #e1e3e5);
+}
+
+.demeurer-drift__diff header strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.demeurer-diff {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  background: #1a1a1a;
+  color: #e0e0e0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  max-height: 60vh;
+}
+
+.demeurer-diff__line {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px;
+  white-space: pre;
+}
+
+.demeurer-diff__line--same {
+  color: #aaaaaa;
+}
+
+.demeurer-diff__line--added {
+  background: rgba(34, 197, 94, 0.15);
+  color: #d1fae5;
+}
+
+.demeurer-diff__line--removed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fecaca;
+}
+
+.demeurer-diff__sigil {
+  width: 12px;
+  flex: 0 0 12px;
+  opacity: 0.7;
+}
+
+.demeurer-diff__text {
+  flex: 1 1 auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ===== Canvas preview banner (version history) ===== */
 
 .demeurer-canvas-banner {

@@ -67,3 +67,25 @@ model PageVersion {
 
   @@index([pageId])
 }
+
+// Memory of files Demeurer has written to a merchant's theme.
+//   - Populated by segment 3's writer (Asset API mutation).
+//   - Consumed by segment 2's drift detector (compile/drift.ts) to
+//     classify modifications as "drifted" (theme changed since we
+//     last wrote) vs "stale" (we have no record; treat as drift but
+//     softer signal).
+// `contentHash` is md5 hex (matches Shopify's `checksumMd5`) so drift
+// comparison is a string equality check.
+model ThemeWrite {
+  id          String   @id @default(cuid())
+  shop        String
+  themeId     String
+  path        String   // e.g. "sections/demeurer-hero.liquid"
+  contentHash String   // md5 hex of what we wrote
+  pageId      String?  // null for shared section files (one per type, not per page)
+  writtenAt   DateTime @default(now())
+
+  @@unique([shop, themeId, path])
+  @@index([shop, themeId])
+  @@index([pageId])
+}

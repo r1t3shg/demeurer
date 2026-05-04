@@ -1,6 +1,117 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), the section library (P1.B), the responsive design layer (P1.C), the compile pipeline (P1.D segment 1), and what comes next.
+A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), the section library (P1.B), the responsive design layer (P1.C), the compile pipeline (P1.D segment 1), theme reads + drift (P1.D segment 2), and what comes next.
+
+---
+
+## P1.D segment 2 — theme reads + drift detection ✅ COMPLETE 2026-05-04
+
+Read side of the Themes API integration: fetch current Demeurer-owned
+files from the merchant's published theme, compute a diff against a
+fresh compile artifact, classify each file, and surface a severity
+assessment. **No theme writes yet** — the Asset API mutation is
+segment 3. This drift layer is the safety net that makes those writes
+safe.
+
+### What's in place
+
+| Area | Path |
+|------|------|
+| Theme GraphQL client (getPublishedTheme, listDemeurerFiles, readThemeFile, readThemeFiles) | `app/lib/theme/client.server.ts` |
+| Per-shop rate limiter (concurrency cap + cost-aware backoff + 429 retry) | `app/lib/theme/rate-limiter.server.ts` |
+| Mock admin client for tests | `app/lib/theme/__mocks__/admin.ts` |
+| md5 hex helper (Shopify-compat) | `app/lib/compile/md5.ts` |
+| Drift detector | `app/lib/compile/drift.ts` |
+| Conflict severity classifier | `app/lib/compile/conflict-severity.ts` |
+| API route — drift report | `app/routes/app.api.pages.$id.drift.ts` |
+| API route — per-file diff content | `app/routes/app.api.pages.$id.drift.diff.ts` |
+| SimpleDiff renderer (hand-rolled, ~80 lines) | `app/components/editor/SimpleDiff.tsx` |
+| Drift panel (dev-only modal, mirrors CompiledOutput pattern) | `app/components/editor/DriftPanel.tsx` |
+| ThemeWrite model + migration | `prisma/schema.prisma`, `prisma/migrations/20260504143612_add_theme_writes/` |
+| Drift tests (8 scenarios + caching) | `app/lib/compile/__tests__/drift.test.ts` |
+
+### Drift classification — three categories
+
+A modified file (artifact md5 ≠ theme md5) is one of:
+
+- **`drifted`** — `ThemeWrite` says we last wrote hash X, theme now has
+  hash Y ≠ X. Manual edit detected. Severity: **major** (publish UI
+  requires explicit acknowledgment).
+- **`tracked`** — `ThemeWrite` hash === theme hash. The artifact is just
+  newer than the published version — normal publish path. Severity
+  contribution: **none**.
+- **`stale`** — no `ThemeWrite` record. We can't prove the merchant
+  didn't edit, so we err conservative. Severity: **minor** (soft
+  warning). Common on the very first publish before segment 3 starts
+  populating records.
+
+The plan originally had only `drifted` and `stale`; I added `tracked` to
+prevent every routine post-first-publish run from triggering "minor"
+severity. Documented in the implementation report.
+
+### Hash convention
+
+Shopify's GraphQL `checksumMd5` is the source of truth for theme-side
+file content fingerprints. Drift detection computes md5 of artifact
+content on the fly to compare. The compile artifact's `contentHash`
+(sha256, P1.D segment 1) stays as is for snapshot tests + internal
+idempotency. **Two hash fields, intentionally** — md5 for Shopify
+compat, sha256 for internal use.
+
+**No content normalization** in segment 2. We md5 the exact string the
+compile pipeline emits. Test scenario 7 documents that a `\r\n` line
+ending in the theme today flags the file as drifted; if this surfaces
+false positives in the dev store, we add a normalization layer.
+
+### Verification of the four architectural commitments
+
+| # | Commitment | Status after P1.D segment 2 |
+|---|------------|---|
+| 1 | Pages keep rendering after uninstall | ✅ This segment is read-only — never touches a theme file. |
+| 2 | No runtime JS injection from our servers | ✅ Drift detection is server-side. Drift panel is dev-only and gated `!import.meta.env.PROD`. |
+| 3 | Pages survive theme updates because they ARE the theme | ✅ The whole point of drift detection: we compare against the live theme so segment 3's writes can be conservative. |
+| 4 | Stop if violating 1–3 | ✅ No deletes of orphan files, ever. The merchant's manual edits are surfaced, never overridden silently. |
+
+### Trade-offs accepted
+
+1. **md5 vs sha256.** Shopify's `checksumMd5` forces md5 for theme
+   compat. Compile artifact keeps sha256 for snapshot tests. Two hash
+   fields by design.
+2. **Hash normalization deferred.** Will surface in manual verification
+   if the dev store returns content with mixed line endings.
+3. **`ThemeWrite` is empty until segment 3.** Every modification before
+   then is `stale`. Once segment 3 ships, the table fills and the
+   `tracked` / `drifted` distinction becomes the common case.
+4. **Mock admin design — switching on operation name in the query
+   string is fragile.** Works for our three queries; if theme client
+   grows, migrate to a richer mocking approach.
+5. **Rate limiter is best-effort.** Per-shop concurrency cap + 429
+   retry with exponential backoff + cost-aware preemptive backoff.
+   Real production wants per-tenant queues + observability.
+
+### Test coverage
+
+`app/lib/compile/__tests__/drift.test.ts` — **8 / 8 green**:
+
+1. Empty theme → all `new`.
+2. Theme matches artifact → all `unchanged`.
+3. One differs, no record → `stale`.
+4. One differs, record ≠ theme → `drifted` (major).
+5. One differs, record === theme → `tracked` (none).
+6. Theme has extra demeurer files → orphans (minor).
+7. CRLF line ending → flagged as drift (documents the trade-off).
+8. Caching: list query reuses 30-second per-(shop, themeId) cache.
+
+**Project total: 66 / 66 green** (8 new + 58 from segment 1).
+
+### Known follow-ups carried into segment 3
+
+- Asset API client + `themeFilesUpsert` mutation.
+- `ThemeWrite` row insertion on every successful write.
+- Idempotent overwrite (skip writes when artifact md5 matches theme
+  md5).
+- Rollback strategy for partial-failure writes.
+- Hash normalization layer if drift testing surfaces false positives.
 
 ---
 
@@ -467,4 +578,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-04 (P1.D segment 1 COMPLETE: pure-functional compile pipeline produces deterministic file artifacts under the shared-section-file model; one `sections/demeurer-{type}.liquid` per used type + one `templates/{page|product}.demeurer-{handle}.json` per page; 58 / 58 tests green including snapshot + determinism + product-page coverage; dev-only "Show compiled output" modal replaces the per-block "Show Liquid" tool. Theme writes still pending in segment 2.)
+**Last updated:** 2026-05-04 (P1.D segment 2 COMPLETE: theme reads via Shopify GraphQL with wildcard prefix filtering, drift detection with three classifications (drifted / tracked / stale), conflict severity classifier, ThemeWrite tracking table, dev-only "Show drift" modal with hand-rolled line-by-line diff viewer; 66 / 66 tests green. Asset API mutation still pending in segment 3.)
