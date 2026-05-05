@@ -1,5 +1,5 @@
 import type { SectionDefinition } from "../types.ts";
-import { SpacerRender } from "./Render.ts";
+import { SpacerRender } from "./Render.tsx";
 import { SPACER_TYPE, spacerDefaults, spacerSchema } from "./schema.ts";
 import { spacerToLiquid } from "./toLiquid.ts";
 

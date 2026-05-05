@@ -1,5 +1,5 @@
 import type { SectionDefinition } from "../types.ts";
-import { TestimonialRender } from "./Render.ts";
+import { TestimonialRender } from "./Render.tsx";
 import {
   TESTIMONIAL_TYPE,
   testimonialDefaults,

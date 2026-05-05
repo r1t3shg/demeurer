@@ -1,6 +1,85 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. **P1.D complete in code (2026-05-04). P1.E segments 1, 2, and 3 complete in code (2026-05-05).** All have merchant-runnable smoke gates. P1.E remaining: internal dogfood.
+A Shopify landing-page builder. **P1.D complete in code (2026-05-04). P1.E segments 1, 2, 3 complete in code (2026-05-05). P1.E segment 4 (dogfood + P1 exit gate) scaffolded in code (2026-05-05); the dogfood run itself is BLOCKED ON MERCHANT — it requires a real dev store with Demeurer installed, manual editor use, Lighthouse, and theme switching.** P1 cannot be marked complete until merchant runs the dogfood and the exit gate resolves green.
+
+---
+
+## P1.E segment 4 — dogfood + P1 exit gate scaffolding ✅ COMPLETE (code) 2026-05-05 — dogfood run BLOCKED ON MERCHANT
+
+The dogfood test rebuilds Demeurer's marketing site using
+Demeurer itself. It surfaces UX issues before private-beta
+merchants encounter them. The agent cannot run the editor
+manually, time page builds, install Demeurer on a dev store,
+run Lighthouse, or switch themes — so segment 4's deliverable
+is the **scaffolding** for the merchant to run the dogfood.
+
+### Code-side hygiene completed
+
+- **Build fix:** all 12 section `index.ts` files imported
+  `./Render.ts` but the actual files are `Render.tsx`. Vite /
+  Rollup couldn't resolve the imports; build was failing for
+  all of P1.B onward but tests passed because node:test
+  resolves both extensions. Fixed every section
+  (`hero`, `image-text`, `pricing`, `feature-list`,
+  `testimonial`, `cta-band`, `faq`, `form`, `logo-wall`,
+  `video`, `spacer`, `html`). `npm run build` now passes
+  cleanly (one chunk-size warning for the editor bundle —
+  expected for an SPA).
+- **Dev-only debug code:** removed the "Simulate crash"
+  button (chaos-test code, not needed post-P1.A);
+  kept "Show compiled output" / "Show drift" gated to
+  `import.meta.env.PROD`. Deleted `simulateCrash` function
+  from `app/routes/app.pages.$id.tsx`.
+- **`.env.example`:** added missing `SHOPIFY_APP_URL` and
+  optional commented `SHOP_CUSTOM_DOMAIN`.
+- **Tests:** 135 / 135 green.
+- **Typecheck:** 3 pre-existing errors (Polaris JSX defs +
+  Shopify SDK type mismatch); unchanged.
+- **Prisma format:** clean, no diff.
+
+### Scaffolding created
+
+- `scripts/p1e-dogfood-log.md` — per-page log template
+  (5 pages) for the merchant to fill in: time taken, sections
+  used, issues encountered with Critical / Major / Minor /
+  Cosmetic severity rubric.
+- `scripts/p1-exit-gate.md` — the comprehensive P1 exit gate
+  with each item marked **✅ AGENT** (verified in code) or
+  **☐ MERCHANT** (requires real dev store). Code-side items
+  pre-resolved; merchant items grouped by category.
+- `scripts/p2-backlog.md` — Minor-issue backlog template
+  pre-seeded with code-review follow-ups (qualityCheck unit
+  tests, editor bundle code-splitting, stats-counter section,
+  newsletter form variant, etc.).
+- `scripts/polish-backlog.md` — Cosmetic-issue backlog (visual
+  / copy nits) pre-seeded with P1.E observations.
+
+### What the merchant runs
+
+Per `scripts/p1e-dogfood-log.md`:
+
+1. Set up demeurer-dev-dawn dev store + a "Demeurer Cap" demo
+   product with 2-3 variants.
+2. Build 5 marketing pages (Home, Pricing, About,
+   Architecture, Sample product page) using only Demeurer's
+   13 sections. Time each page; log issues with severity.
+3. Triage: fix Critical / Major in this segment; defer Minor
+   to `scripts/p2-backlog.md`; defer Cosmetic to
+   `scripts/polish-backlog.md`.
+4. Run Lighthouse on each published page (mobile + desktop);
+   log scores in `scripts/lighthouse-benchmark.md`. Target:
+   95+ on mobile across all four metrics.
+5. Run the P1 exit gate (`scripts/p1-exit-gate.md`) — every
+   ☐ MERCHANT item must turn green before P1 is declared
+   complete.
+
+### Bar for P1 exit
+
+> Would I want a beta merchant going through this same
+> experience tomorrow?
+
+If the dogfood log surfaces ≤ 5 Critical and ≤ 10 Major and
+the answer is "yes" — P1 ships. Otherwise: pause, fix, rerun.
 
 ---
 
@@ -1381,4 +1460,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-05 (P1.E segment 3 COMPLETE in code: code-side RTL audit found 1 issue — product-details `direction: rtl` no-op on RTL parents — fixed via `flex-direction: row-reverse` flex layout in three places (Render.tsx, toLiquid.ts, shared section-template); `prefers-reduced-motion` CSS added to logo-wall marquee + testimonial scroll-snap; qualityCheck nudges extended on hero, image-text, form, and pricing without adding architectural surface; three merchant-runnable scripts created (`scripts/rtl-audit.md`, `scripts/accessibility-audit.md`, `scripts/p2-theme-compatibility.md`) with code-side findings pre-filled; 135 / 135 tests green. **Storefront RTL spot-check + Lighthouse / axe / keyboard / 5-theme matrix all BLOCKED ON MERCHANT.** P1.E remaining: internal dogfood.)
+**Last updated:** 2026-05-05 (P1.E segment 4 SCAFFOLDED in code: build fix — all 12 section `index.ts` files updated `./Render.ts` → `./Render.tsx` so Vite/Rollup can resolve imports (build was failing pre-segment-4); dev-only `simulateCrash` button removed (kept Show-compiled / Show-drift dev panels); `.env.example` updated for `SHOPIFY_APP_URL` + commented `SHOP_CUSTOM_DOMAIN`; four merchant-runnable artifacts created (`scripts/p1e-dogfood-log.md`, `scripts/p1-exit-gate.md`, `scripts/p2-backlog.md`, `scripts/polish-backlog.md`) pre-seeded with code-side findings; 135 / 135 tests green; build clean. **The dogfood run itself + every editor-experience / storefront / Lighthouse / theme-compatibility item in `scripts/p1-exit-gate.md` is BLOCKED ON MERCHANT — they require a real dev store, real editor sessions, browser, and Lighthouse runs that the agent cannot perform.** P1 cannot be marked complete until the merchant runs the dogfood and resolves every ☐ MERCHANT item green.)

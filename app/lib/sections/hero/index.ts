@@ -7,7 +7,7 @@
 
 import { contrastRatio } from "../_shared/quality.ts";
 import type { SectionDefinition, SectionQualityIssue } from "../types.ts";
-import { HeroRender } from "./Render.ts";
+import { HeroRender } from "./Render.tsx";
 import { HERO_TYPE, coerceHeroProps, heroDefaults, heroSchema } from "./schema.ts";
 import { heroToLiquid } from "./toLiquid.ts";
 

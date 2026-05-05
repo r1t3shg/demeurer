@@ -1,5 +1,5 @@
 import type { SectionDefinition } from "../types.ts";
-import { FeatureListRender } from "./Render.ts";
+import { FeatureListRender } from "./Render.tsx";
 import {
   FEATURE_LIST_TYPE,
   featureListDefaults,

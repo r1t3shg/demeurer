@@ -1,5 +1,5 @@
 import type { SectionDefinition } from "../types.ts";
-import { LogoWallRender } from "./Render.ts";
+import { LogoWallRender } from "./Render.tsx";
 import { LOGO_WALL_TYPE, logoWallDefaults, logoWallSchema } from "./schema.ts";
 import { logoWallToLiquid } from "./toLiquid.ts";
 

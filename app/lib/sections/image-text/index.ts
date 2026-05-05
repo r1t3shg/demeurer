@@ -1,5 +1,5 @@
 import type { SectionDefinition, SectionQualityIssue } from "../types.ts";
-import { ImageTextRender } from "./Render.ts";
+import { ImageTextRender } from "./Render.tsx";
 import {
   IMAGE_TEXT_TYPE,
   coerceImageTextProps,

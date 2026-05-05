@@ -1,5 +1,5 @@
 import type { SectionDefinition } from "../types.ts";
-import { VideoRender } from "./Render.ts";
+import { VideoRender } from "./Render.tsx";
 import { VIDEO_TYPE, videoDefaults, videoSchema } from "./schema.ts";
 import { videoToLiquid } from "./toLiquid.ts";
 

@@ -1,5 +1,5 @@
 import type { SectionDefinition, SectionQualityIssue } from "../types.ts";
-import { HtmlRender } from "./Render.ts";
+import { HtmlRender } from "./Render.tsx";
 import { HTML_TYPE, HTML_WARNING_TEXT, htmlDefaults, htmlSchema } from "./schema.ts";
 import { htmlToLiquid } from "./toLiquid.ts";
 

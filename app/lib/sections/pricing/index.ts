@@ -1,5 +1,5 @@
 import type { SectionDefinition, SectionQualityIssue } from "../types.ts";
-import { PricingRender } from "./Render.ts";
+import { PricingRender } from "./Render.tsx";
 import {
   PRICING_TYPE,
   coercePricingProps,

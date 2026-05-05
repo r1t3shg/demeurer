@@ -1,5 +1,5 @@
 import type { SectionDefinition } from "../types.ts";
-import { FaqRender } from "./Render.ts";
+import { FaqRender } from "./Render.tsx";
 import { FAQ_TYPE, faqDefaults, faqSchema } from "./schema.ts";
 import { faqToLiquid } from "./toLiquid.ts";
 

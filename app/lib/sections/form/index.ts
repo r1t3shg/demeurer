@@ -1,5 +1,5 @@
 import type { SectionDefinition, SectionQualityIssue } from "../types.ts";
-import { FormRender } from "./Render.ts";
+import { FormRender } from "./Render.tsx";
 import { FORM_TYPE, coerceFormProps, formDefaults, formSchema } from "./schema.ts";
 import { formToLiquid } from "./toLiquid.ts";
 

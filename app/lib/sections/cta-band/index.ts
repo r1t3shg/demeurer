@@ -1,6 +1,6 @@
 import { contrastRatio } from "../_shared/quality.ts";
 import type { SectionDefinition, SectionQualityIssue } from "../types.ts";
-import { CtaBandRender } from "./Render.ts";
+import { CtaBandRender } from "./Render.tsx";
 import { CTA_BAND_TYPE, coerceCtaBandProps, ctaBandDefaults, ctaBandSchema } from "./schema.ts";
 import { ctaBandToLiquid } from "./toLiquid.ts";
 

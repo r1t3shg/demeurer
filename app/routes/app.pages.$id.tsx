@@ -359,25 +359,9 @@ export default function PageEditor() {
     setRecoveryDecided(true);
   };
 
-  // Manual QA helper for crash recovery. Re-enabled in dev for the
-  // P1.A chaos test (scripts/p1a-chaos-test.md). Strips in-memory state
-  // without calling markSaved, then reloads — the localStorage draft
-  // remains and the recovery banner should appear on the next mount.
-  // Vite replaces import.meta.env.PROD at build time, so this branch
-  // is dead-code-eliminated from production bundles.
+  // Vite replaces import.meta.env.PROD at build time, so dev-only
+  // panels below are dead-code-eliminated from production bundles.
   const isDev = !import.meta.env.PROD;
-  const simulateCrash = () => {
-    useEditorStore.setState({
-      document: { version: 2, blocks: [] },
-      isDirty: false,
-      lastSavedAt: null,
-      history: [],
-      future: [],
-      historyCursor: 0,
-      selectedBlockId: null,
-    });
-    window.location.reload();
-  };
 
   return (
     <ThemeTokensContext.Provider value={theme.tokens}>
@@ -479,11 +463,6 @@ export default function PageEditor() {
         {isDev ? (
           <s-button onClick={() => setDriftOpen(true)}>
             Show drift (dev)
-          </s-button>
-        ) : null}
-        {isDev ? (
-          <s-button tone="critical" onClick={simulateCrash}>
-            Simulate crash (dev)
           </s-button>
         ) : null}
       </div>
