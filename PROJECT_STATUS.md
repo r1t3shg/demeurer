@@ -1,6 +1,162 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. **P1.D complete in code (2026-05-04). P1.E segment 1 (variant-aware product pages) complete in code (2026-05-05).** Both have merchant-runnable smoke gates. P1.E remaining segments: multilingual / RTL polish, internal dogfood.
+A Shopify landing-page builder. **P1.D complete in code (2026-05-04). P1.E segment 1 (variant-aware product pages) and segment 2 (per-variant content + Translate & Adapt verification) complete in code (2026-05-05).** All have merchant-runnable smoke gates. P1.E remaining: internal dogfood.
+
+---
+
+## P1.E segment 2 — per-variant content + Translate & Adapt ✅ COMPLETE (code) 2026-05-05 — variant-conditional storefront test + T&A round-trip BLOCKED ON MERCHANT
+
+Two extensions on top of segment 1:
+
+1. **Per-variant content authoring.** Blocks on product pages can
+   be bound to specific variants. The shared section template
+   wraps the body in a Liquid `{% if %}` guard that compares the
+   current variant id against the bound list. When a variant
+   changes, modern themes refetch the section via Shopify's
+   section-rendering API and the conditional re-evaluates. **No
+   custom JS from us.**
+
+2. **Translate & Adapt verification.** Audited every section's
+   field-kind → Shopify-setting-type mapping; `text`/`richtext`
+   fields surface as translatable T&A entries automatically. A
+   small globe icon next to translatable fields in the editor
+   sets the right expectations. Documented in
+   `docs/translate-and-adapt.md`.
+
+### What's in place
+
+| Area | Path |
+|------|------|
+| `VariantBinding` type + Block field + isBlock guard | `app/lib/editor/types.ts` |
+| `setVariantBinding` + `previewVariantId` on store | `app/lib/editor/store.ts` |
+| `bound_variant_ids` compile-only setting (productAware only) | `app/lib/compile/settings-schema.ts` |
+| Variant-guard wrap in shared section template | `app/lib/compile/section-templates/_shared.ts` |
+| `bound_variant_ids` written in page-template (GID-stripped) | `app/lib/compile/page-template.ts` |
+| VariantBindingRow (Properties panel) | `app/components/editor/VariantBindingRow.tsx` |
+| Outline variant badge | `app/components/editor/Outline.tsx` |
+| PreviewAsVariantSelect (toolbar) | `app/components/editor/PreviewAsVariantSelect.tsx` |
+| Canvas variant fade | `app/components/editor/Canvas.tsx` |
+| Globe2 icon on text/richtext fields | `app/components/editor/fields/{TextField,RichTextField}.tsx` |
+| 7 variant-binding tests + 19 translatable-fields tests | `app/lib/compile/__tests__/{variant-binding,translatable-fields}.test.ts` |
+| Multilingual setup guide | `docs/translate-and-adapt.md` |
+| Manual smoke + storefront tests | `scripts/p1e-segment2-smoke.md` |
+
+### How variant binding compiles
+
+Editor mutation → Block JSON:
+```json
+{
+  "variantBinding": {
+    "mode": "specific",
+    "variantIds": ["gid://shopify/ProductVariant/123", "gid://shopify/ProductVariant/456"]
+  }
+}
+```
+
+Compile output (page template settings):
+```json
+{ "bound_variant_ids": "123,456" }
+```
+
+Shared section file (productAware sections) wraps the body in a
+`{% if %}` guard comparing
+`product.selected_or_first_available_variant.id` against the
+comma-separated list. Empty `bound_variant_ids` (the common case)
+takes the `{% else %}` branch — semantically identical to no
+guard. Per-section files remain byte-identical regardless of
+merchant variant choices; the binding payload lives in the page
+template JSON.
+
+### Translate & Adapt audit result
+
+`translatable-fields.test.ts` walks every section in the registry
+and asserts:
+
+- `text` / `richtext` fields → Shopify `text` / `textarea` /
+  `richtext` (translatable in T&A).
+- All other field kinds → non-translatable Shopify types.
+
+**All 13 sections pass.** No schema changes needed — segment 1's
+mapping was already correct. The test is the regression net.
+
+### Verification of the four architectural commitments
+
+| # | Commitment | Status after P1.E segment 2 |
+|---|------------|---|
+| 1 | Pages keep rendering after uninstall | ✅ Unchanged. The variant guard is part of the section file in the merchant's theme; uninstall doesn't touch it. Without us, the conditional still evaluates correctly. |
+| 2 | No runtime JS injection from our servers | ✅ Variant-conditional rendering is theme-JS-driven (section-rendering API on variant change). We emit Liquid only. The Pricing toggle carve-out (~15 lines, opt-in, scoped) is unchanged. |
+| 3 | Pages survive theme updates | ✅ Unchanged from P1.D segment 5. |
+| 4 | Stop if violating 1–3 | ✅ Block.variantBinding is purely additive to the document; no schema migration. Translate & Adapt integration is upstream — Demeurer doesn't ship a per-language editor. |
+
+### Test coverage
+
+`variant-binding.test.ts` — **7 / 7 green**:
+1. Non-productAware section: no `bound_variant_ids` in settings.
+2. ProductAware section, no binding: `bound_variant_ids: ""`.
+3. ProductAware section, mode "all": empty string.
+4. ProductAware section, mode "specific": comma-separated numeric
+   ids (GID stripped).
+5. ProductAware shared file contains the variant guard.
+6. Non-productAware shared file lacks the guard.
+7. `variantBinding` survives `migrateDocument` round-trip.
+
+`translatable-fields.test.ts` — **19 / 19 green**: per-section
+audit + list-field block audit across all 13 sections.
+
+**Project total: 135 / 135 green** (26 new + 109 from segment 1).
+
+### Architectural concerns surfaced
+
+1. **The variant guard adds a layer to every productAware section's
+   shared file.** When binding isn't used, the `{% else %}` branch
+   runs — semantically no-op. Snapshot tests regenerated to
+   capture the new shared-file content.
+
+2. **GID-strip happens at compile time.** Editor stores
+   `gid://shopify/ProductVariant/123`; storefront sees numeric
+   `123`. Compile normalizes.
+
+3. **`previewVariantId === null` shows all blocks.** Faded-by-
+   default would feel broken to merchants who haven't opted into a
+   specific preview.
+
+4. **The translatable globe is informational.** Browser-native
+   `title` tooltip; no editing UI. In-app T&A deep link is
+   post-MVP.
+
+5. **No schema migration.** `Block.variantBinding` is additive;
+   `migrateDocument` unchanged.
+
+6. **Per-variant + per-language don't compose cleanly.** Documented
+   in `docs/translate-and-adapt.md` under "Limitations".
+
+7. **The variant-conditional storefront test cannot be agent-run.**
+   Smoke step 4.
+
+8. **T&A round-trip also merchant-only.** Smoke step 8.
+
+### Storefront variant-conditional confirmation
+
+> Spec asked: "Tell me what you changed and confirm the variant-
+> conditional storefront behavior worked."
+
+**The agent cannot confirm this.** Running the test requires a
+real dev store with a multi-variant product on a modern theme,
+plus a real browser. Smoke script step 4 is the protocol; result
+template at the bottom. T&A round-trip (step 8) has the same
+constraint.
+
+If step 4 fails, the most likely cause is theme JS doing full
+page reloads instead of section-rendering-API refetches. The
+conditional still works on a full reload — just less smoothly.
+
+### Known follow-ups
+
+- Internal dogfood — Demeurer's marketing site on Demeurer.
+- "Insert product data" UX affordance in field renderers (deferred
+  from segment 1).
+- Migrate from deprecated `featuredImage` / `images` to `media`.
+- Theme compatibility matrix (P2 — private beta).
 
 ---
 
@@ -1182,4 +1338,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-05 (P1.E segment 1 COMPLETE in code: product page binding + Product details section + `productAware` flag + product token replacement + `templateSuffix` binding via productUpdate; 13 sections total; 109 / 109 tests green. **The variant-picker storefront test is BLOCKED ON MERCHANT** — needs a real dev store with a multi-variant product on a modern theme; protocol at `scripts/p1e-segment1-smoke.md` step 6. P1.E remaining: multilingual / RTL polish, internal dogfood.)
+**Last updated:** 2026-05-05 (P1.E segment 2 COMPLETE in code: per-variant content authoring via `Block.variantBinding` + shared-section `{% if %}` guard, Translate & Adapt audit confirms text/richtext fields are translatable across all 13 sections, globe indicator on text/richtext fields, "Preview as variant" toolbar dropdown; 135 / 135 tests green. **Storefront variant-conditional + T&A round-trip both BLOCKED ON MERCHANT** — protocol at `scripts/p1e-segment2-smoke.md` steps 4 + 8. P1.E remaining: internal dogfood.)

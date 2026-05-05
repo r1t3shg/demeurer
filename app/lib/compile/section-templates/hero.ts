@@ -42,6 +42,7 @@ export const heroTemplate: SectionTemplate = {
       body: BODY,
       schema: heroSchema,
       presets: [{ name: "Demeurer Hero" }],
+      productAware: true,
     }),
   propMap: [paddingPropMap(), alignmentPropMap()],
   toSettings(mobileProps) {

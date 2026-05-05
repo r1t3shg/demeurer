@@ -90,6 +90,15 @@ export interface EditorState {
    */
   activeBreakpoint: Breakpoint;
 
+  /**
+   * Editor-only "Preview as variant" selection. UI state — not part
+   * of the document, not history-tracked. `null` = "show all blocks
+   * regardless of variantBinding" (the default authoring view).
+   * Setting a variant id fades blocks whose `variantBinding`
+   * excludes that variant. P1.E segment 2.
+   */
+  previewVariantId: string | null;
+
   loadDocument: (source: unknown) => void;
   selectBlock: (id: BlockId | null) => void;
   addBlock: (block: Block, parentId?: BlockId | null, index?: number) => void;
@@ -126,12 +135,29 @@ export interface EditorState {
   ) => void;
   removeBlock: (id: BlockId) => void;
   moveBlock: (id: BlockId, newParentId: BlockId | null, newIndex: number) => void;
+  /**
+   * Set or clear a block's per-variant binding. Pass `null` (or a
+   * binding with `mode: "all"`) to clear; pass `{ mode: "specific",
+   * variantIds }` to bind. History-tracked.
+   *
+   * Storing `mode: "all"` is normalized to clearing the field — the
+   * persisted JSON stays minimal.
+   */
+  setVariantBinding: (
+    id: BlockId,
+    binding: import("./types.ts").VariantBinding | null,
+  ) => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
   markSaved: () => void;
   setActiveBreakpoint: (bp: Breakpoint) => void;
+  /**
+   * Set the "Preview as" variant id. Pass `null` to return to the
+   * default authoring view (no variant fade).
+   */
+  setPreviewVariantId: (id: string | null) => void;
 }
 
 /** Fields a caller may patch on a block. `id` and `children` are not patchable here. */
@@ -206,6 +232,7 @@ export const useEditorStore = create<EditorState>()(
       future: [],
       historyCursor: 0,
       activeBreakpoint: loadStoredBreakpoint(),
+      previewVariantId: null,
 
       loadDocument: (source) =>
         set((state) => {
@@ -304,6 +331,31 @@ export const useEditorStore = create<EditorState>()(
         });
       },
 
+      setVariantBinding: (id, binding) => {
+        const before = snapshotDocument(get().document);
+        set((state) => {
+          const block = findBlock(state.document.blocks, id);
+          if (!block) return;
+          recordHistory(state, before);
+          // `mode: "all"` is the default and never persisted — clear
+          // the field so the JSON stays minimal.
+          if (
+            binding === null ||
+            binding.mode === "all" ||
+            !binding.variantIds ||
+            binding.variantIds.length === 0
+          ) {
+            delete block.variantBinding;
+          } else {
+            block.variantBinding = {
+              mode: "specific",
+              variantIds: [...binding.variantIds],
+            };
+          }
+          state.isDirty = true;
+        });
+      },
+
       moveBlock: (id, newParentId, newIndex) => {
         const before = snapshotDocument(get().document);
         set((state) => {
@@ -377,6 +429,12 @@ export const useEditorStore = create<EditorState>()(
           state.activeBreakpoint = bp;
         });
         persistBreakpoint(bp);
+      },
+
+      setPreviewVariantId: (id) => {
+        set((state) => {
+          state.previewVariantId = id;
+        });
       },
     };
   }),

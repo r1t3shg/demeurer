@@ -35,8 +35,21 @@ export function buildSharedSectionFile(opts: {
   presets?: Array<{ name: string; settings?: Record<string, unknown> }>;
   /** Section-level extras like `tag`. Defaults to `tag: "section"`. */
   tag?: string;
+  /**
+   * When true:
+   *   - `{% schema %}` includes the `bound_variant_ids` compile-only
+   *     setting.
+   *   - The body is wrapped in a Liquid guard that compares
+   *     `product.selected_or_first_available_variant.id` against the
+   *     comma-separated ids in `section.settings.bound_variant_ids`.
+   *   - Empty `bound_variant_ids` → render unconditionally (the
+   *     common case; merchant didn't bind to specific variants).
+   *
+   * P1.E segment 2.
+   */
+  productAware?: boolean;
 }): string {
-  const settings = buildSectionSettings(opts.schema);
+  const settings = buildSectionSettings(opts.schema, opts.productAware);
   const blocks = buildBlockSchemas(opts.schema);
   const schemaJson: Record<string, unknown> = {
     name: opts.name,
@@ -48,6 +61,30 @@ export function buildSharedSectionFile(opts: {
   if (opts.presets && opts.presets.length > 0) schemaJson.presets = opts.presets;
 
   const schemaStr = stableStringify(schemaJson, 2);
+
+  // For productAware sections, wrap the body in a variant guard.
+  // Non-bound blocks (the common case) take the {% else %} branch —
+  // semantically identical to no guard at all.
+  const wrappedBody = opts.productAware
+    ? [
+        `{%- if section.settings.bound_variant_ids != blank -%}`,
+        `  {%- assign current_variant_id = product.selected_or_first_available_variant.id | append: '' -%}`,
+        `  {%- assign bound_ids = section.settings.bound_variant_ids | split: ',' -%}`,
+        `  {%- assign should_render = false -%}`,
+        `  {%- for vid in bound_ids -%}`,
+        `    {%- assign normalized = vid | strip -%}`,
+        `    {%- if normalized == current_variant_id -%}`,
+        `      {%- assign should_render = true -%}`,
+        `    {%- endif -%}`,
+        `  {%- endfor -%}`,
+        `  {%- if should_render -%}`,
+        opts.body.trim(),
+        `  {%- endif -%}`,
+        `{%- else -%}`,
+        opts.body.trim(),
+        `{%- endif -%}`,
+      ].join("\n")
+    : opts.body.trim();
 
   // The skeleton: header (liquid scope assignment + style block), body,
   // schema. Bodies are responsible for their own outer `<section>` tag
@@ -67,7 +104,7 @@ export function buildSharedSectionFile(opts: {
     `  {{ section.settings.visibility_styles }}`,
     `{%- endstyle -%}`,
     ``,
-    opts.body.trim(),
+    wrappedBody,
     ``,
     `{% schema %}`,
     schemaStr,

@@ -1332,6 +1332,105 @@
   padding-left: 20px;
 }
 
+/* ===== Variant binding + translatable indicator (P1.E segment 2) ===== */
+
+.demeurer-variant-binding {
+  border: 1px solid var(--p-color-border, #e1e3e5);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
+.demeurer-variant-binding__summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.demeurer-variant-binding__count {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--p-color-text-secondary, #6d7175);
+}
+
+.demeurer-variant-binding__body {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.demeurer-variant-binding__radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.demeurer-variant-binding__list {
+  list-style: none;
+  margin: 4px 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.demeurer-variant-binding__list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.demeurer-outline-variant-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  margin-left: 4px;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #92400e;
+  white-space: nowrap;
+}
+
+.demeurer-field-translatable-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.demeurer-field-translatable-row > s-text-field {
+  flex: 1 1 auto;
+}
+
+.demeurer-field-translatable {
+  display: inline-flex;
+  align-items: center;
+  color: var(--p-color-text-secondary, #6d7175);
+  cursor: help;
+  margin-bottom: 6px;
+}
+
+.demeurer-field-translatable:hover {
+  color: var(--p-color-text-link, #1a73e8);
+}
+
+.demeurer-field-richtext-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ===== Drift panel (dev tool, P1.D segment 2) ===== */
 
 .demeurer-drift__summary {

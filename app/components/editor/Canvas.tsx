@@ -312,6 +312,7 @@ function InlineBlock({
 }) {
   const def = getSection(block.type);
   const product = useProduct();
+  const previewVariantId = useEditorStore((s) => s.previewVariantId);
   if (!def) {
     return (
       <div className="demeurer-section-unknown">
@@ -331,6 +332,28 @@ function InlineBlock({
         </span>
         <span className="demeurer-preview-hidden__hint">
           Hidden at this breakpoint
+        </span>
+      </div>
+    );
+  }
+  // Per-variant content (P1.E segment 2): when the merchant has
+  // picked a specific variant in the toolbar's "Preview as"
+  // dropdown, fade blocks whose binding excludes that variant.
+  // `previewVariantId === null` (Default) skips this — show all.
+  if (
+    block.variantBinding?.mode === "specific" &&
+    block.variantBinding.variantIds &&
+    block.variantBinding.variantIds.length > 0 &&
+    previewVariantId !== null &&
+    !block.variantBinding.variantIds.includes(previewVariantId)
+  ) {
+    return (
+      <div className="demeurer-section-frame demeurer-section-frame-readonly demeurer-preview-hidden">
+        <span className="demeurer-preview-hidden__label">
+          {def.label ?? block.type}
+        </span>
+        <span className="demeurer-preview-hidden__hint">
+          Hidden for this variant
         </span>
       </div>
     );

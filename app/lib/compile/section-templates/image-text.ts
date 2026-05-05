@@ -63,6 +63,7 @@ export const imageTextTemplate: SectionTemplate = {
       body: BODY,
       schema: imageTextSchema,
       presets: [{ name: "Demeurer Image + text" }],
+      productAware: true,
     }),
   propMap: [paddingPropMap()],
   toSettings(mobileProps) {

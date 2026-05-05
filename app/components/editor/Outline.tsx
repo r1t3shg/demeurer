@@ -278,6 +278,17 @@ function OutlineNode({
             ) : null}
           </span>
         ) : null}
+        {block.variantBinding?.mode === "specific" ? (
+          <span
+            className="demeurer-outline-variant-badge"
+            title={`Bound to ${block.variantBinding.variantIds?.length ?? 0} variant${
+              (block.variantBinding.variantIds?.length ?? 0) === 1 ? "" : "s"
+            }`}
+          >
+            {block.variantBinding.variantIds?.length ?? 0} variant
+            {(block.variantBinding.variantIds?.length ?? 0) === 1 ? "" : "s"}
+          </span>
+        ) : null}
         <button
           type="button"
           className="demeurer-outline-delete"

@@ -109,6 +109,22 @@ function buildSectionEntry(
     visibility_styles: styles.visibility_styles,
   };
 
+  // Per-block variant filter (P1.E segment 2). Only emitted for
+  // productAware sections. Editor stores GIDs; the shared section
+  // file compares against the numeric variant id at runtime, so we
+  // strip the GID prefix here.
+  if (template.productAware) {
+    const binding = block.variantBinding;
+    if (binding?.mode === "specific" && binding.variantIds?.length) {
+      fullSettings.bound_variant_ids = binding.variantIds
+        .map(stripVariantGid)
+        .join(",");
+    } else {
+      // Empty for shape stability: same source → same JSON bytes.
+      fullSettings.bound_variant_ids = "";
+    }
+  }
+
   const entry: Record<string, unknown> = {
     type: `demeurer-${template.type}`,
     settings: fullSettings,
@@ -163,6 +179,19 @@ function stableSectionKey(block: Block, used: Set<string>): string {
   }
   // Fallback that should never happen at MVP page sizes.
   return `${base}-${used.size}`;
+}
+
+/**
+ * Strip the Shopify GID prefix from a variant id, returning just the
+ * numeric portion. The editor stores variant ids as
+ * `gid://shopify/ProductVariant/123`; the storefront's
+ * `product.selected_or_first_available_variant.id` returns the
+ * numeric `123`. Normalize at compile time so the shared section
+ * file's string comparison just works.
+ */
+function stripVariantGid(id: string): string {
+  const slash = id.lastIndexOf("/");
+  return slash >= 0 ? id.slice(slash + 1) : id;
 }
 
 function sanitize(id: string): string {

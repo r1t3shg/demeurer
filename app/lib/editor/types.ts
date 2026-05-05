@@ -50,11 +50,31 @@ export interface PropsByBreakpoint {
   desktop?: Record<string, unknown>;
 }
 
+/**
+ * Per-variant content binding (P1.E segment 2).
+ *
+ * On product pages, a block can be limited to specific variants via
+ * `mode: "specific"` + a list of variant GIDs. The shared section
+ * template wraps the body in a Liquid `{% if %}` guard at compile
+ * time, so the storefront only renders the block when the active
+ * variant matches.
+ *
+ * `mode: "all"` (or `undefined` — the common case) means the block
+ * renders on every variant; no Liquid conditional is emitted.
+ */
+export interface VariantBinding {
+  mode: "all" | "specific";
+  /** Required when `mode === "specific"`. Shopify variant GIDs. */
+  variantIds?: string[];
+}
+
 export interface Block {
   id: BlockId;
   type: string;
   props: PropsByBreakpoint;
   children: Block[];
+  /** Optional per-block variant filter. See `VariantBinding`. */
+  variantBinding?: VariantBinding;
 }
 
 export interface EditorDocument {
@@ -98,6 +118,18 @@ export function isBlock(value: unknown): value is Block {
   }
   if (props.desktop !== undefined && (props.desktop === null || typeof props.desktop !== "object")) {
     return false;
+  }
+  // Optional variantBinding — additive in P1.E segment 2; reject only
+  // if present-but-malformed (so old documents stay valid).
+  if (v.variantBinding !== undefined) {
+    const vb = v.variantBinding;
+    if (!vb || typeof vb !== "object") return false;
+    const vbo = vb as Record<string, unknown>;
+    if (vbo.mode !== "all" && vbo.mode !== "specific") return false;
+    if (vbo.variantIds !== undefined) {
+      if (!Array.isArray(vbo.variantIds)) return false;
+      if (!vbo.variantIds.every((x) => typeof x === "string")) return false;
+    }
   }
   return true;
 }
@@ -176,5 +208,22 @@ function migrateBlock(value: unknown): Block | null {
     props = { mobile: { ...rawProps } };
   }
 
-  return { id: v.id, type: v.type, props, children };
+  // Preserve variantBinding if present and well-formed (additive
+  // field added in P1.E segment 2; older docs lack it entirely).
+  let variantBinding: VariantBinding | undefined;
+  const rawVb = v.variantBinding;
+  if (rawVb && typeof rawVb === "object") {
+    const vb = rawVb as Record<string, unknown>;
+    if (vb.mode === "specific" && Array.isArray(vb.variantIds)) {
+      const ids = vb.variantIds.filter(
+        (x): x is string => typeof x === "string",
+      );
+      if (ids.length > 0) variantBinding = { mode: "specific", variantIds: ids };
+    }
+    // mode "all" is the default; we don't store it.
+  }
+
+  const block: Block = { id: v.id, type: v.type, props, children };
+  if (variantBinding) block.variantBinding = variantBinding;
+  return block;
 }

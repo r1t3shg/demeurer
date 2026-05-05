@@ -1,3 +1,5 @@
+import * as LucideIcons from "lucide-react";
+
 import type { RichtextField as RichtextFieldDef } from "../../../lib/sections";
 import type { FieldRendererProps } from "./types";
 
@@ -17,7 +19,15 @@ export function RichTextField({
   const current = typeof value === "string" ? value : "";
   return (
     <div className="demeurer-field-richtext">
-      <div className="demeurer-field-richtext-label">{field.label}</div>
+      <div className="demeurer-field-richtext-label">
+        <span>{field.label}</span>
+        <span
+          className="demeurer-field-translatable"
+          title="Translatable via Shopify's free Translate & Adapt app. See docs/translate-and-adapt.md."
+        >
+          <LucideIcons.Globe2 size={14} aria-hidden="true" />
+        </span>
+      </div>
       <textarea
         className="demeurer-field-richtext-input"
         value={current}

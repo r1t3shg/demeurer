@@ -14,6 +14,7 @@ import {
 import type { Block, Breakpoint } from "../../lib/editor/types";
 import { BREAKPOINT_META } from "../../lib/editor/breakpoints";
 import { getSection, isResponsiveField } from "../../lib/sections";
+import { VariantBindingRow } from "./VariantBindingRow";
 import type { Field, SectionQualityIssue } from "../../lib/sections/types";
 import { FieldRenderer } from "./fields/FieldRenderer";
 import { useThemeTokens } from "./ThemeTokensContext";
@@ -203,6 +204,8 @@ function PropertiesBody({
           id: …{block.id.slice(-6)}
         </div>
       </div>
+
+      {def?.productAware ? <VariantBindingRow block={block} /> : null}
 
       <VisibilityRow block={block} />
 

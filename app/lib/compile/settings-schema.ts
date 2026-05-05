@@ -33,8 +33,13 @@ export interface ShopifyBlockSchema {
 }
 
 /**
- * The five compile-only settings, in fixed order. Appended to every
+ * The compile-only settings, in fixed order. Appended to every
  * section's settings array AFTER the schema-derived settings.
+ *
+ * `bound_variant_ids` is appended ONLY when the section template is
+ * `productAware: true` — it carries the per-block variant filter
+ * (P1.E segment 2). Empty string = render on all variants. Comma-
+ * separated numeric ids = render only when current variant matches.
  */
 export const COMPILE_ONLY_SETTING_KEYS = [
   "scope_id",
@@ -42,10 +47,11 @@ export const COMPILE_ONLY_SETTING_KEYS = [
   "tablet_styles",
   "desktop_styles",
   "visibility_styles",
+  "bound_variant_ids",
 ] as const;
 
-export function compileOnlySettings(): ShopifySetting[] {
-  return [
+export function compileOnlySettings(productAware = false): ShopifySetting[] {
+  const base: ShopifySetting[] = [
     { type: "text", id: "scope_id", label: "Scope id", info: "" },
     { type: "textarea", id: "mobile_styles", label: "Mobile styles", info: "" },
     { type: "textarea", id: "tablet_styles", label: "Tablet styles", info: "" },
@@ -57,6 +63,15 @@ export function compileOnlySettings(): ShopifySetting[] {
       info: "",
     },
   ];
+  if (productAware) {
+    base.push({
+      type: "text",
+      id: "bound_variant_ids",
+      label: "Bound variant ids",
+      info: "",
+    });
+  }
+  return base;
 }
 
 /**
@@ -66,14 +81,20 @@ export function compileOnlySettings(): ShopifySetting[] {
  *
  * `list` fields produce no top-level settings — they map to Shopify
  * `blocks` and are handled separately via `buildBlockSchemas`.
+ *
+ * Pass `productAware: true` to include the `bound_variant_ids`
+ * compile-only setting (per-block variant filter; P1.E segment 2).
  */
-export function buildSectionSettings(schema: SectionSchema): ShopifySetting[] {
+export function buildSectionSettings(
+  schema: SectionSchema,
+  productAware = false,
+): ShopifySetting[] {
   const out: ShopifySetting[] = [];
   for (const field of schema.fields) {
     if (field.kind === "list") continue;
     out.push(...fieldToSettings(field, ""));
   }
-  out.push(...compileOnlySettings());
+  out.push(...compileOnlySettings(productAware));
   return out;
 }
 

@@ -5,6 +5,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 
 import { SaveIndicator } from "../components/SaveIndicator";
 import { BreakpointSwitcher } from "../components/editor/BreakpointSwitcher";
+import { PreviewAsVariantSelect } from "../components/editor/PreviewAsVariantSelect";
 import { Canvas } from "../components/editor/Canvas";
 import { CompiledOutput } from "../components/editor/CompiledOutput";
 import { DriftPanel } from "../components/editor/DriftPanel";
@@ -445,6 +446,9 @@ export default function PageEditor() {
         <div className="demeurer-editor-toolbar__bp-slot">
           <BreakpointSwitcher />
         </div>
+        {page.type === "product" && product ? (
+          <PreviewAsVariantSelect product={product} />
+        ) : null}
         <s-button
           onClick={() => undo()}
           {...(canUndo ? {} : { disabled: true })}

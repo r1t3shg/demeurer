@@ -35,7 +35,7 @@ const BODY = `
   {%- assign picker_tag = 'variant-selects' -%}
 {%- endif -%}
 
-<section class="{{ scope }} demeurer-section demeurer-product-details demeurer-product-details--{{ section.settings.layout }}" style="display: grid; {%- if section.settings.layout == 'image-top-content-bottom' -%}grid-template-columns: 1fr;{%- else -%}grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);{%- endif -%} gap: 48px; align-items: start; {%- if section.settings.layout == 'image-right-content-left' -%}direction: rtl;{%- endif -%}">
+<section class="{{ scope }} demeurer-section demeurer-product-details demeurer-product-details--{{ section.settings.layout }}" style="display: grid; {%- if section.settings.layout == 'image-top-content-bottom' -%} grid-template-columns: 1fr; {%- else -%} grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); {%- endif -%} gap: 48px; align-items: start; {%- if section.settings.layout == 'image-right-content-left' -%} direction: rtl; {%- endif -%}">
   {%- if section.settings.showImage -%}
     <div class="demeurer-product-details__media" style="direction: ltr;">
       {%- if product.featured_image -%}
@@ -159,6 +159,7 @@ export const productDetailsTemplate: SectionTemplate = {
       body: BODY,
       schema: productDetailsSchema,
       presets: [{ name: "Demeurer Product details" }],
+      productAware: true,
     }),
   propMap: [paddingPropMap()],
   toSettings(mobileProps) {
