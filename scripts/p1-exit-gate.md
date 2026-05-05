@@ -33,15 +33,19 @@ Re-run.
 
 ### (2) No runtime JavaScript injection from our servers
 
-- ☐ MERCHANT — Network tab during page load on each of the 5
-  pages → zero requests to `demeurer.app`.
-- ☐ MERCHANT — Page source → zero
-  `<script src="...demeurer...">` tags.
-
-**Code-side verification (✅ AGENT):**
-- Greped every section's `toLiquid` and shared section template:
-  zero `<script src=` tags. The pricing toggle is the only JS
-  Demeurer emits — ~15 inline lines, no external src.
+- ✅ AGENT — Static analysis of compiled `kitchen-sink` and
+  `kitchen-sink-responsive` snapshot output:
+  - Zero `demeurer.app` references in any emitted Liquid file.
+  - Zero `<script src=...>` tags emitted anywhere.
+  - The only outbound URLs in compiled output are merchant-
+    controlled video iframe embeds (`player.vimeo.com`,
+    `www.youtube-nocookie.com`) — these are `<iframe>`, not
+    `<script>`, and the merchant explicitly chose them.
+  - The pricing toggle is the only JS Demeurer emits — ~15
+    inline lines, zero external src.
+- ☐ MERCHANT — Confirm by Network tab on the 5 dogfood pages
+  (storefront-runtime sanity check that the static guarantee
+  holds end-to-end).
 - See `docs/architecture-commitments.md` §2.
 
 ### (3) Pages survive theme updates
@@ -68,8 +72,20 @@ Re-run.
   desktop.
 
 **Code-side verification (✅ AGENT):**
-- All sections use `image_url: width:` filter with `srcset` for
-  responsive images.
+- Every emitted `<img>` goes through Shopify's `image_url`
+  filter (no raw URLs):
+  - hero: `image_url: width: 2400` (CSS background, ultrawide
+    + retina coverage).
+  - image-text: `image_url: width: 1600 | image_tag` with
+    `widths: '400, 600, 800, 1200, 1600'` (full srcset).
+  - product-details main: `image_url: width: 1600 | image_tag`
+    with `widths: '400, 600, 800, 1200, 1600'`.
+  - product-details thumbs: `image_url: width: 200` (rendered
+    at 64×64; 3× retina).
+  - logo-wall: `image_url: height: logo_h` (rendered at
+    24/32/48 px tall; logos don't need srcset).
+  - testimonial avatars: `image_url: width: 80` (rendered
+    40×40; 2× retina).
 - `loading: 'lazy'` on every non-hero image.
 - Pricing toggle is the only JavaScript; ~15 inline lines.
 - Logo-wall marquee + testimonial scroll-snap respect
@@ -101,6 +117,19 @@ All ☐ MERCHANT — agent cannot run editor manually.
   verify storefront variant change shows/hides correctly.
 - ☐ All 13 sections present in the picker, render correctly,
   publish correctly.
+
+**Code-side verification (✅ AGENT):**
+- All 13 sections registered in `app/lib/sections/index.ts`:
+  `hero`, `feature-list`, `image-text`, `testimonial`, `faq`,
+  `cta-band`, `logo-wall`, `pricing`, `video`, `form`,
+  `spacer`, `html`, `product-details`. Each has a complete
+  `{ schema, defaults, Render, toLiquid }` definition.
+- The `kitchen-sink` snapshot fixture exercises all 13
+  sections; tests pass on every commit (`compile.test.ts`).
+- `productAware` sections (`hero`, `image-text`,
+  `product-details`) compile with the variant-binding
+  `should_render` guard wrapping their body; verified in
+  `kitchen-sink.snap` (2 occurrences of `should_render`).
 
 ---
 
