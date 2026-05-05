@@ -156,6 +156,10 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       data: {
         publishedAt: new Date(),
         themeId: result.themeId,
+        // We just published to the current MAIN; by definition the
+        // page is no longer mismatched with whatever theme it used
+        // to be on.
+        themeMismatch: false,
       },
     });
     return Response.json({ ok: true, result, firstPublish: isFirstPublish });

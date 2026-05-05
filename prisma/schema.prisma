@@ -14,21 +14,21 @@ datasource db {
 }
 
 model Session {
-  id            String    @id
-  shop          String
-  state         String
-  isOnline      Boolean   @default(false)
-  scope         String?
-  expires       DateTime?
-  accessToken   String
-  userId        BigInt?
-  firstName     String?
-  lastName      String?
-  email         String?
-  accountOwner  Boolean   @default(false)
-  locale        String?
-  collaborator  Boolean?  @default(false)
-  emailVerified Boolean?  @default(false)
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
@@ -38,18 +38,24 @@ model Session {
 // editor schema will evolve frequently in early development and flattening
 // would make migrations painful. SQLite stores Json as TEXT under the hood.
 model Page {
-  id          String        @id @default(cuid())
-  shop        String
-  title       String
-  type        String        // "landing" | "product"
-  handle      String        // URL slug
-  source      Json          // Editor's source-of-truth tree
-  publishedAt DateTime?
-  themeId     String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  versions    PageVersion[]
-  publishes   Publish[]
+  id            String        @id @default(cuid())
+  shop          String
+  title         String
+  type          String // "landing" | "product"
+  handle        String // URL slug
+  source        Json // Editor's source-of-truth tree
+  publishedAt   DateTime?
+  themeId       String?
+  // Set true by the `themes/publish` webhook when the merchant
+  // switches their MAIN theme and this page's published themeId no
+  // longer matches. Cleared on successful re-publish (which targets
+  // the new MAIN) or by an explicit Dismiss action from the editor
+  // banner. See `app/routes/webhooks.themes.publish.tsx`.
+  themeMismatch Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  versions      PageVersion[]
+  publishes     Publish[]
 
   @@unique([shop, handle])
   @@index([shop])
@@ -82,13 +88,13 @@ model Publish {
   pageId                String
   themeId               String
   themeName             String
-  status                String   // "success" | "partial_failure"
-  fileCount             Int      // number of files actually written
-  artifactSourceVersion Int      // page.updatedAt.getTime() at compile time
-  failedPaths           String?  // JSON array of failed paths; null on success
+  status                String // "success" | "partial_failure"
+  fileCount             Int // number of files actually written
+  artifactSourceVersion Int // page.updatedAt.getTime() at compile time
+  failedPaths           String? // JSON array of failed paths; null on success
   createdAt             DateTime @default(now())
 
-  page                  Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@index([pageId, createdAt])
   @@index([shop])
@@ -106,9 +112,9 @@ model ThemeWrite {
   id          String   @id @default(cuid())
   shop        String
   themeId     String
-  path        String   // e.g. "sections/demeurer-hero.liquid"
-  contentHash String   // md5 hex of what we wrote
-  pageId      String?  // null for shared section files (one per type, not per page)
+  path        String // e.g. "sections/demeurer-hero.liquid"
+  contentHash String // md5 hex of what we wrote
+  pageId      String? // null for shared section files (one per type, not per page)
   writtenAt   DateTime @default(now())
 
   @@unique([shop, themeId, path])

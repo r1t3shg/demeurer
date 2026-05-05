@@ -1,6 +1,140 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. This document tracks foundation (P0), editor data-loss-proofing (P1.A), the section library (P1.B), the responsive design layer (P1.C), the compile pipeline (P1.D segment 1), theme reads + drift (P1.D segment 2), the publish pipeline (P1.D segment 3), the merchant-facing publish flow (P1.D segment 4), and what comes next.
+A Shopify landing-page builder. **P1.D — the compile step — is complete in code as of 2026-05-04.** The architectural commitment is structurally enforced; the merchant-runnable exit gate is at `scripts/p1d-exit-gate.md` and BLOCKED ON MERCHANT to declare P1.D shippable. P1.E (variant-aware product pages, RTL polish, internal dogfood) is the final P1 phase.
+
+---
+
+## P1.D — The compile step — ✅ COMPLETE (code) 2026-05-04 — exit gate BLOCKED ON MERCHANT
+
+The architectural commitment is real: pages compile to native Liquid
+section files in the merchant's theme; they survive uninstall, theme
+switches, and manual edits. The full compile→drift→write→merchant-UI
+pipeline is in place across five segments (1: compile, 2: drift,
+3: writer + apply, 4: merchant publish flow, 5: theme-update recovery
++ exit gate).
+
+### What the exit gate verifies (`scripts/p1d-exit-gate.md`)
+
+| Section | Items | Who runs |
+|---|---|---|
+| Architectural commitment verification | 7 (uninstall on Dawn + 24h delay; no JS; theme switch + recovery; Lighthouse) | merchant |
+| Publish flow verification | 11 (idempotency, drift, partial failure, lock contention, first-publish modal) | merchant |
+| Recovery verification | 4 (themeMismatch flagging, banner, bulk re-publish with deliberate failure) | merchant |
+| Destruction resistance | 6 (manual file deletion + edit; drift catches both) | merchant |
+| Regression | 3 (P1.A chaos, P1.B catalog, P1.C responsive overrides round-trip) | merchant |
+| Code-side checks | typecheck, tests, dev-tool gating, logging audit, prisma format, migrations | **agent (PASS)** |
+
+The merchant runs the manual sections; results go into the template
+at the bottom of the script.
+
+### Result template (paste here after running the exit gate)
+
+```
+P1.D exit gate run on YYYY-MM-DD by ____________.
+
+Architectural test on Dawn:                                 PASS / FAIL
+Architectural test on second theme (_____________):         PASS / FAIL
+Theme-switch + re-publish flow:                             PASS / FAIL
+Lighthouse mobile (kitchen sink) Performance:               __ / 100
+Lighthouse mobile vs baseline gap:                          __ points
+Publish flow verification:                                  __ / 11 PASS
+Recovery verification:                                      __ / 4  PASS
+Destruction resistance:                                     __ / 6  PASS
+Regression:                                                 __ / 3  PASS
+
+Notes / failures:
+  -
+
+Decision: SHIP P1.D / DIAGNOSE FAILURES BEFORE SHIPPING
+```
+
+---
+
+## P1.D segment 5 — exit-gate verification + theme-update recovery ✅ COMPLETE (code) 2026-05-04
+
+The final segment of P1.D. Closes the loop on theme switches and
+delivers the comprehensive exit-gate protocol.
+
+### What's in place
+
+| Area | Path |
+|------|------|
+| `themeMismatch` column on `Page` + migration | `prisma/schema.prisma`, `prisma/migrations/20260504181241_add_theme_mismatch/` |
+| `themes/publish` webhook handler (marks stale pages) | `app/routes/webhooks.themes.publish.tsx`, `app/lib/theme/webhook-themes-publish.ts` |
+| `themes/update` webhook stub (drift catches divergence) | `app/routes/webhooks.themes.update.tsx` |
+| Publish route clears `themeMismatch` on success | `app/routes/app.api.pages.$id.publish.ts` |
+| Acknowledge-mismatch (Dismiss) API | `app/routes/app.api.pages.$id.acknowledge-mismatch.ts` |
+| Editor banner with Re-publish + Dismiss | `app/components/editor/ThemeMismatchBanner.tsx` |
+| Pages list — `⚠ Different theme` badge + top-of-app warning | `app/routes/app._index.tsx` |
+| Bulk re-publish page (sequential, per-page failure isolated) | `app/routes/app.pages.theme-mismatch.tsx` |
+| Webhook handler tests (8 scenarios) | `app/lib/theme/__tests__/webhook-themes-publish.test.ts` |
+| Comprehensive exit gate protocol | `scripts/p1d-exit-gate.md` |
+| Lighthouse benchmark template | `scripts/lighthouse-benchmark.md` |
+| Public-facing engineering doc | `docs/architecture-commitments.md` |
+
+### Theme-switch recovery flow
+
+1. Merchant publishes a page (themeId = Dawn's gid).
+2. Merchant switches MAIN theme to Sense.
+3. Shopify fires `themes/publish` webhook with the new theme's
+   numeric id.
+4. Handler resolves `gid://shopify/OnlineStoreTheme/{id}` and runs
+   `db.page.updateMany` to flag every published page on a different
+   theme.
+5. Pages list shows `⚠ Different theme`. Editor shows the banner.
+6. Merchant clicks Re-publish; standard publish flow runs against
+   the new MAIN. `Page.themeMismatch` clears, `themeId` updates.
+7. Old theme A still has its Demeurer files — never deleted. If the
+   merchant ever switches back, the page on theme A still works.
+
+### Test coverage
+
+`app/lib/theme/__tests__/webhook-themes-publish.test.ts` —
+**8 / 8 green**: stale pages flagged, on-theme pages skipped,
+unpublished/never-published untouched, malformed/null payloads
+no-op, cross-shop isolation, numeric-string id defensiveness.
+
+**Project total: 94 / 94 green** (8 new + 86 from segment 4).
+
+### Logging audit (per spec task 9)
+
+Verified: no merchant page content, file content, or input beyond
+shop domain is logged at any level. Webhook handlers log topic +
+shop (operationally useful). Error paths log error objects only.
+Documented in `docs/architecture-commitments.md` for the record.
+
+### Architectural concerns surfaced
+
+1. **The exit gate cannot be agent-run.** The architectural,
+   Lighthouse, and theme-switch tests require a real dev store +
+   manual install/uninstall + multiple themes. Script is
+   comprehensive; results live with the merchant.
+2. **`themes/publish` webhook payload shape is inferred** from
+   Shopify's REST webhook conventions (`id` numeric). Handler is
+   defensive: malformed payload → no-op. Drift detection on next
+   publish is the safety net regardless.
+3. **Bulk re-publish is sequential, client-side** — reuses the
+   single-page publish route. All guardrails (drift, lock,
+   ThemeWrite, Publish row) apply unchanged.
+4. **No automatic re-publish.** Even with the webhook detecting a
+   mismatch, we never write to the new theme without merchant
+   action. Auto-rewriting would surprise them.
+5. **Dismiss semantics**: clears `themeMismatch` for one page only.
+   The merchant has decided to leave it on the old theme; if they
+   ever switch again, the webhook re-flags. They can revert by
+   clicking Re-publish.
+
+### What's NOT yet built (carried into P1.E)
+
+- **Variant-aware product page support** — product templates need
+  variant context.
+- **Translate & Adapt integration** — multi-language hooks.
+- **RTL polish** — CSS audit across all 12 sections.
+- **Internal dogfood** — rebuilding Demeurer's marketing site on
+  Demeurer.
+
+P1.E is the final P1 phase, focused on product-page specifics and
+launch polish. After P1.E, P2 (private beta) can begin.
 
 ---
 
@@ -909,4 +1043,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-04 (P1.D segment 4 COMPLETE in code: merchant-facing publish flow with three button states, pre-publish drift dialog with inline diff, partial-failure recovery, publish-history drawer, unpublish confirm, first-publish onboarding modal, "View live" affordances on the pages list; +Publish model and migration; 86 / 86 tests green. The architectural uninstall test from segment 3 still BLOCKED ON MERCHANT. `themes/*` webhook handlers + draft-theme preview pending.)
+**Last updated:** 2026-05-04 (P1.D COMPLETE in code: theme-update recovery via `themes/publish` webhook + `themeMismatch` flag + editor banner + bulk re-publish UI + comprehensive exit gate at `scripts/p1d-exit-gate.md` + architectural commitments doc at `docs/architecture-commitments.md`; 94 / 94 tests green. **The exit gate is BLOCKED ON MERCHANT** — it requires a real dev store, install/uninstall, two themes, Lighthouse runs. Results template at the top of this file. P1.E (product pages, RTL, dogfood) is the final P1 phase.)

@@ -31,11 +31,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       handle: true,
       updatedAt: true,
       publishedAt: true,
+      themeMismatch: true,
     },
   });
 
+  const mismatchCount = pages.filter(
+    (p) => p.publishedAt !== null && p.themeMismatch,
+  ).length;
+
   return {
     shop,
+    mismatchCount,
     pages: pages.map((p) => ({
       id: p.id,
       title: p.title,
@@ -43,6 +49,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       handle: p.handle,
       updatedAt: p.updatedAt.toISOString(),
       publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
+      themeMismatch: p.themeMismatch,
     })),
   };
 };
@@ -112,7 +119,7 @@ function formatUpdated(iso: string): string {
 }
 
 export default function PagesIndex() {
-  const { pages, shop } = useLoaderData<typeof loader>();
+  const { pages, shop, mismatchCount } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
 
   const error = fetcher.data && "error" in fetcher.data ? fetcher.data : null;
@@ -137,6 +144,25 @@ export default function PagesIndex() {
       >
         Create page
       </s-button>
+
+      {mismatchCount > 0 ? (
+        <s-banner tone="warning">
+          <s-stack direction="block" gap="base">
+            <s-text>
+              {mismatchCount} of your{" "}
+              {mismatchCount === 1 ? "page is" : "pages are"} published to a
+              previous theme. Re-publish{" "}
+              {mismatchCount === 1 ? "it" : "them"} to your current theme to
+              ensure {mismatchCount === 1 ? "it" : "they"} render correctly.
+            </s-text>
+            <s-stack direction="inline" gap="base">
+              <s-link href="/app/pages/theme-mismatch">
+                Show affected pages
+              </s-link>
+            </s-stack>
+          </s-stack>
+        </s-banner>
+      ) : null}
 
       {pages.length === 0 ? (
         <s-section heading="No pages yet">
@@ -183,7 +209,11 @@ export default function PagesIndex() {
                   <s-table-cell>
                     {page.publishedAt ? (
                       <s-stack direction="inline" gap="small">
-                        <s-badge tone="success">Published</s-badge>
+                        {page.themeMismatch ? (
+                          <s-badge tone="warning">⚠ Different theme</s-badge>
+                        ) : (
+                          <s-badge tone="success">Published</s-badge>
+                        )}
                         <a
                           className="demeurer-view-live-link"
                           href={storefrontUrl(shop, page)}

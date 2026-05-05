@@ -16,6 +16,7 @@ import { PublishButton } from "../components/editor/PublishButton";
 import { PublishHistory } from "../components/editor/PublishHistory";
 import { PublishMenu } from "../components/editor/PublishMenu";
 import { PublishProgress } from "../components/editor/PublishProgress";
+import { ThemeMismatchBanner } from "../components/editor/ThemeMismatchBanner";
 import { UnpublishConfirm } from "../components/editor/UnpublishConfirm";
 import {
   createPublishFlow,
@@ -61,6 +62,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       source: true,
       publishedAt: true,
       themeId: true,
+      themeMismatch: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -92,6 +94,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       source: page.source,
       publishedAt: page.publishedAt ? page.publishedAt.toISOString() : null,
       themeId: page.themeId,
+      themeMismatch: page.themeMismatch,
       createdAt: page.createdAt.toISOString(),
       updatedAt: page.updatedAt.toISOString(),
     },
@@ -364,6 +367,14 @@ export default function PageEditor() {
       <s-button slot="primary-action" href="/app">
         Back to pages
       </s-button>
+
+      {page.themeMismatch ? (
+        <ThemeMismatchBanner
+          pageId={page.id}
+          onRepublish={handleClickPublish}
+          onDismissed={() => window.location.reload()}
+        />
+      ) : null}
 
       <div className="demeurer-publish-toolbar">
         <div className="demeurer-publish-toolbar__inner">
