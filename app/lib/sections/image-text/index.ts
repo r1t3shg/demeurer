@@ -29,6 +29,12 @@ export const imageTextDefinition: SectionDefinition = {
         message: "Image alt text is empty. Add a description so screen readers can convey the image.",
       });
     }
+    if (p.heading.trim() === imageTextDefaults.heading) {
+      issues.push({
+        severity: "info",
+        message: "Default heading not changed — replace with your own copy before publishing.",
+      });
+    }
     return issues;
   },
 };

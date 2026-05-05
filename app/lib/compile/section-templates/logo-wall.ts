@@ -64,6 +64,9 @@ const BODY = `
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
         }
+        @media (prefers-reduced-motion: reduce) {
+          .{{ scope }} .demeurer-logo-wall__track { animation: none; }
+        }
       </style>
     {%- else -%}
       <div class="demeurer-logo-wall__grid" style="display: flex; flex-wrap: wrap; gap: 48px; align-items: center; justify-content: center;">

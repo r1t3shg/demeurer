@@ -155,21 +155,19 @@ ${styleBlock}
   class="${scope} demeurer-section demeurer-product-details demeurer-product-details--{{ section.settings.layout }}"
   style="
     padding: {{ section.settings.padding_top }}px {{ section.settings.padding_x }}px {{ section.settings.padding_bottom }}px;
-    display: grid;
-    {%- if section.settings.layout == 'image-top-content-bottom' -%}
-      grid-template-columns: 1fr;
-    {%- else -%}
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    {%- endif -%}
+    display: flex;
+    flex-wrap: wrap;
     gap: 48px;
-    align-items: start;
-    {%- if section.settings.layout == 'image-right-content-left' -%}
-      direction: rtl;
-    {%- endif -%}
+    align-items: flex-start;
+    flex-direction:
+    {%- if section.settings.layout == 'image-top-content-bottom' %} column
+    {%- elsif section.settings.layout == 'image-right-content-left' %} row-reverse
+    {%- else %} row
+    {%- endif -%};
   "
 >
   {%- if section.settings.showImage -%}
-    <div class="demeurer-product-details__media" style="direction: ltr;">
+    <div class="demeurer-product-details__media" style="flex: 1 1 320px; min-width: 240px;">
       {%- if product.featured_image -%}
         {{ product.featured_image | image_url: width: 1600 | image_tag:
           loading: 'lazy',
@@ -195,7 +193,7 @@ ${styleBlock}
     </div>
   {%- endif -%}
 
-  <div class="demeurer-product-details__buy-area" style="direction: ltr; display: flex; flex-direction: column; gap: 12px;">
+  <div class="demeurer-product-details__buy-area" style="flex: 1 1 320px; min-width: 240px; display: flex; flex-direction: column; gap: 12px;">
     {%- if section.settings.showVendor and product.vendor != blank -%}
       <p class="demeurer-product-details__vendor" style="margin: 0; opacity: 0.7; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em;">{{ product.vendor }}</p>
     {%- endif -%}

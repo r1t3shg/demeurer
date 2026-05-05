@@ -45,6 +45,12 @@ export const heroDefinition: SectionDefinition = {
         message: "Background image is set but the hero has no heading — screen reader users won't know what this section is about.",
       });
     }
+    if (p.heading.trim() === heroDefaults.heading) {
+      issues.push({
+        severity: "info",
+        message: "Default heading not changed — replace with your own copy before publishing.",
+      });
+    }
     return issues;
   },
 };

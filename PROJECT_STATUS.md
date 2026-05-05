@@ -1,6 +1,49 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. **P1.D complete in code (2026-05-04). P1.E segment 1 (variant-aware product pages) and segment 2 (per-variant content + Translate & Adapt verification) complete in code (2026-05-05).** All have merchant-runnable smoke gates. P1.E remaining: internal dogfood.
+A Shopify landing-page builder. **P1.D complete in code (2026-05-04). P1.E segments 1, 2, and 3 complete in code (2026-05-05).** All have merchant-runnable smoke gates. P1.E remaining: internal dogfood.
+
+---
+
+## P1.E segment 3 — RTL polish, accessibility, theme compatibility ✅ COMPLETE (code) 2026-05-05 — storefront RTL + Lighthouse + 5-theme matrix BLOCKED ON MERCHANT
+
+Three deliverables:
+
+1. **RTL audit + fix.** Code-side audit confirmed all sections use
+   CSS logical properties (`paddingInlineStart`, `text-align: start`,
+   `margin-inline: auto`). One issue found: `product-details` outer
+   wrapper used `direction: rtl` to flip columns, which was a no-op
+   on RTL parents. Fixed by switching to flexbox with
+   `flex-direction: row-reverse` (matches `image-text` pattern).
+   Three files updated in lockstep:
+   `app/lib/sections/product-details/{Render.tsx,toLiquid.ts}` and
+   `app/lib/compile/section-templates/product-details.ts`.
+2. **prefers-reduced-motion.** Added to the two sections with
+   animations:
+   - `logo-wall` marquee → `animation: none` under reduce-motion.
+   - `testimonial` carousel → `scroll-behavior: auto` under
+     reduce-motion (no smooth-scroll on keyboard arrow).
+3. **qualityCheck nudges.** Extended four section qualityChecks
+   without adding new architectural surface:
+   - `hero` — info nudge when default heading isn't replaced.
+   - `image-text` — info nudge when default heading isn't replaced.
+   - `form` — error when `fields.length === 0`.
+   - `pricing` — warning when 2+ tiers all share the same name.
+
+Three merchant-runnable scripts created:
+- `scripts/rtl-audit.md` — per-section LTR vs RTL checklist.
+- `scripts/accessibility-audit.md` — Lighthouse + axe + keyboard +
+  screen-reader checklist.
+- `scripts/p2-theme-compatibility.md` — 5-theme matrix template.
+
+Code-side audit results pre-filled. Storefront verification, axe
+DevTools, Lighthouse runs, and theme installs all
+**BLOCKED ON MERCHANT** — they require a real dev store with each
+theme installed.
+
+Snapshot regeneration: `kitchen-sink` and `kitchen-sink-responsive`
+fixtures regenerated to capture the product-details flexbox change
+and the new `@media (prefers-reduced-motion: reduce)` blocks.
+**135 / 135 tests green.**
 
 ---
 
@@ -1338,4 +1381,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-05 (P1.E segment 2 COMPLETE in code: per-variant content authoring via `Block.variantBinding` + shared-section `{% if %}` guard, Translate & Adapt audit confirms text/richtext fields are translatable across all 13 sections, globe indicator on text/richtext fields, "Preview as variant" toolbar dropdown; 135 / 135 tests green. **Storefront variant-conditional + T&A round-trip both BLOCKED ON MERCHANT** — protocol at `scripts/p1e-segment2-smoke.md` steps 4 + 8. P1.E remaining: internal dogfood.)
+**Last updated:** 2026-05-05 (P1.E segment 3 COMPLETE in code: code-side RTL audit found 1 issue — product-details `direction: rtl` no-op on RTL parents — fixed via `flex-direction: row-reverse` flex layout in three places (Render.tsx, toLiquid.ts, shared section-template); `prefers-reduced-motion` CSS added to logo-wall marquee + testimonial scroll-snap; qualityCheck nudges extended on hero, image-text, form, and pricing without adding architectural surface; three merchant-runnable scripts created (`scripts/rtl-audit.md`, `scripts/accessibility-audit.md`, `scripts/p2-theme-compatibility.md`) with code-side findings pre-filled; 135 / 135 tests green. **Storefront RTL spot-check + Lighthouse / axe / keyboard / 5-theme matrix all BLOCKED ON MERCHANT.** P1.E remaining: internal dogfood.)

@@ -1,6 +1,6 @@
-import type { SectionDefinition } from "../types.ts";
+import type { SectionDefinition, SectionQualityIssue } from "../types.ts";
 import { FormRender } from "./Render.ts";
-import { FORM_TYPE, formDefaults, formSchema } from "./schema.ts";
+import { FORM_TYPE, coerceFormProps, formDefaults, formSchema } from "./schema.ts";
 import { formToLiquid } from "./toLiquid.ts";
 
 export const formDefinition: SectionDefinition = {
@@ -14,4 +14,15 @@ export const formDefinition: SectionDefinition = {
   defaults: { ...formDefaults },
   Render: FormRender,
   toLiquid: formToLiquid,
+  qualityCheck: (props) => {
+    const p = coerceFormProps(props);
+    const issues: SectionQualityIssue[] = [];
+    if (p.fields.length === 0) {
+      issues.push({
+        severity: "error",
+        message: "Form has no fields. Add at least one field (e.g., Email) for the form to work.",
+      });
+    }
+    return issues;
+  },
 };

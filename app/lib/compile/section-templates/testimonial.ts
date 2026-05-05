@@ -22,6 +22,11 @@ void describeRating; // describeRating is rendered in Liquid via filters; helper
 
 const BODY = `
 <section class="{{ scope }} demeurer-section demeurer-testimonial">
+  <style>
+    @media (prefers-reduced-motion: reduce) {
+      .{{ scope }} .demeurer-testimonial__carousel { scroll-behavior: auto; }
+    }
+  </style>
   <div class="demeurer-testimonial__inner" style="max-width: 1200px; margin-inline: auto;">
     {%- if section.settings.heading != blank -%}
       <h2 class="demeurer-testimonial__heading" style="text-align: center; margin: 0 0 32px;">{{ section.settings.heading | escape }}</h2>
