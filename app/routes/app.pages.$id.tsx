@@ -24,6 +24,7 @@ import {
   type PublishStage,
 } from "../lib/editor/publish-flow";
 import { BREAKPOINT_ORDER } from "../lib/editor/breakpoints";
+import { ProductContext } from "../components/editor/ProductContext";
 import { ThemeTokensContext } from "../components/editor/ThemeTokensContext";
 import {
   VersionHistory,
@@ -35,6 +36,7 @@ import { useEditorStore } from "../lib/editor/store";
 import type { Block, EditorDocument } from "../lib/editor/types";
 import { useAutosave } from "../lib/editor/useAutosave";
 import { authenticate } from "../shopify.server";
+import { getProductForBinding } from "../lib/product/fetch.server";
 import { getThemeTokens } from "../lib/theme/tokens.server";
 import {
   buildPreviewQuery,
@@ -63,6 +65,9 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       publishedAt: true,
       themeId: true,
       themeMismatch: true,
+      productId: true,
+      productHandle: true,
+      previousTemplateSuffix: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -75,6 +80,15 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   // Theme tokens for the canvas preview. Never throws — defaults are
   // returned on error so a broken theme fetch doesn't break the editor.
   const theme = await getThemeTokens(admin, shop);
+
+  // Product binding: for product pages, fetch the bound Shopify
+  // product (cached 60s per shop+productId). Used by the canvas to
+  // render a faithful preview. Fetch failures return null; the
+  // editor surfaces a banner and renders placeholders.
+  const product =
+    page.type === "product" && page.productId
+      ? await getProductForBinding(admin, shop, page.productId)
+      : null;
 
   // HMAC-signed query the canvas iframe will append to /preview/<pageId>.
   // The preview route can't go through App Bridge, so it verifies this
@@ -95,16 +109,19 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       publishedAt: page.publishedAt ? page.publishedAt.toISOString() : null,
       themeId: page.themeId,
       themeMismatch: page.themeMismatch,
+      productId: page.productId,
+      productHandle: page.productHandle,
       createdAt: page.createdAt.toISOString(),
       updatedAt: page.updatedAt.toISOString(),
     },
     theme,
+    product,
     previewQuery,
   };
 };
 
 export default function PageEditor() {
-  const { page, theme, previewQuery } = useLoaderData<typeof loader>();
+  const { page, theme, product, previewQuery } = useLoaderData<typeof loader>();
 
   const isDirty = useEditorStore((s) => s.isDirty);
   const historyCursor = useEditorStore((s) => s.historyCursor);
@@ -363,6 +380,7 @@ export default function PageEditor() {
 
   return (
     <ThemeTokensContext.Provider value={theme.tokens}>
+    <ProductContext.Provider value={product}>
     <s-page heading={page.title}>
       <s-button slot="primary-action" href="/app">
         Back to pages
@@ -374,6 +392,23 @@ export default function PageEditor() {
           onRepublish={handleClickPublish}
           onDismissed={() => window.location.reload()}
         />
+      ) : null}
+
+      {page.type === "product" && page.productId && !product ? (
+        <s-banner tone="warning">
+          <s-stack direction="block" gap="small">
+            <s-text>
+              Couldn't load product data — preview may show
+              placeholders. The bound product may have been deleted, or
+              the {`read_products`} scope may be missing.
+            </s-text>
+            <s-stack direction="inline" gap="small">
+              <s-button onClick={() => window.location.reload()}>
+                Reload
+              </s-button>
+            </s-stack>
+          </s-stack>
+        </s-banner>
       ) : null}
 
       <div className="demeurer-publish-toolbar">
@@ -552,6 +587,7 @@ export default function PageEditor() {
         onClose={() => setFirstPublishModalOpen(false)}
       />
     </s-page>
+    </ProductContext.Provider>
     </ThemeTokensContext.Provider>
   );
 }

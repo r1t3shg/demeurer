@@ -46,6 +46,11 @@ function pageInput(name: string, type: "landing" | "product" = "landing") {
     type,
     source: loadFixture(name),
     updatedAt: FIXED_UPDATED_AT,
+    // Product pages require a productId post-segment-5; landing pages
+    // ignore the field. Provide a stub productId for product fixtures.
+    ...(type === "product"
+      ? { productId: "gid://shopify/Product/1" }
+      : {}),
   };
 }
 

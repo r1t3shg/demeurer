@@ -38,24 +38,34 @@ model Session {
 // editor schema will evolve frequently in early development and flattening
 // would make migrations painful. SQLite stores Json as TEXT under the hood.
 model Page {
-  id            String        @id @default(cuid())
-  shop          String
-  title         String
-  type          String // "landing" | "product"
-  handle        String // URL slug
-  source        Json // Editor's source-of-truth tree
-  publishedAt   DateTime?
-  themeId       String?
+  id                     String        @id @default(cuid())
+  shop                   String
+  title                  String
+  type                   String // "landing" | "product"
+  handle                 String // URL slug
+  source                 Json // Editor's source-of-truth tree
+  publishedAt            DateTime?
+  themeId                String?
   // Set true by the `themes/publish` webhook when the merchant
   // switches their MAIN theme and this page's published themeId no
   // longer matches. Cleared on successful re-publish (which targets
   // the new MAIN) or by an explicit Dismiss action from the editor
   // banner. See `app/routes/webhooks.themes.publish.tsx`.
-  themeMismatch Boolean       @default(false)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  versions      PageVersion[]
-  publishes     Publish[]
+  themeMismatch          Boolean       @default(false)
+  // Product page binding. Required at the application layer when
+  // type === "product"; nullable in the schema so existing landing
+  // pages stay valid.
+  productId              String? // gid://shopify/Product/123
+  productHandle          String? // cached handle for storefront URL routing
+  // Captured ONCE at first successful publish to a product page —
+  // the templateSuffix the bound product had BEFORE we set ours.
+  // Used on unpublish to restore (instead of blanking, which could
+  // clobber another app's template).
+  previousTemplateSuffix String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  versions               PageVersion[]
+  publishes              Publish[]
 
   @@unique([shop, handle])
   @@index([shop])

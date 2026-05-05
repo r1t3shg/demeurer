@@ -1,6 +1,145 @@
 # Demeurer — Project Status
 
-A Shopify landing-page builder. **P1.D — the compile step — is complete in code as of 2026-05-04.** The architectural commitment is structurally enforced; the merchant-runnable exit gate is at `scripts/p1d-exit-gate.md` and BLOCKED ON MERCHANT to declare P1.D shippable. P1.E (variant-aware product pages, RTL polish, internal dogfood) is the final P1 phase.
+A Shopify landing-page builder. **P1.D complete in code (2026-05-04). P1.E segment 1 (variant-aware product pages) complete in code (2026-05-05).** Both have merchant-runnable smoke gates. P1.E remaining segments: multilingual / RTL polish, internal dogfood.
+
+---
+
+## P1.E segment 1 — variant-aware product pages ✅ COMPLETE (code) 2026-05-05 — variant-picker storefront test BLOCKED ON MERCHANT
+
+Pages can now bind to a Shopify product. A new **Product details**
+section renders the variant picker, price, gallery, and add-to-cart
+using Shopify's standard `<variant-radios>` / `<variant-selects>`
+markup that Dawn/Sense/Studio/Refresh/Spotlight already enhance with
+their own JS. Existing sections (`hero`, `image-text`) gained a
+`productAware` flag and accept `{{product.title}}` tokens that
+expand to real Liquid at compile time.
+
+**No custom JS from us.** The variant picker integration is theme-
+driven — we emit the markup pattern themes already understand, and
+their existing JS does the work.
+
+### What's in place
+
+| Area | Path |
+|------|------|
+| Page binding columns + migration | `prisma/schema.prisma`, `prisma/migrations/20260505014840_add_product_binding/` |
+| `write_products` scope added | `shopify.app.toml` |
+| Product fetch + cache + productUpdate mutation | `app/lib/product/fetch.server.ts` |
+| ProductContext + `useProduct()` hook | `app/components/editor/ProductContext.tsx` |
+| `productAware?: boolean` on `SectionDefinition` + `product` prop on `SectionRenderProps` | `app/lib/sections/types.ts` |
+| Product details section (schema, Render, toLiquid, index) | `app/lib/sections/product-details/` |
+| Compile-side product-details template | `app/lib/compile/section-templates/product-details.ts` |
+| Token replacement (`{{product.title}}` → `{{ product.title }}` etc.) | `app/lib/compile/product-tokens.ts` |
+| page-template integration of token replacement | `app/lib/compile/page-template.ts` |
+| Compile-time validation (product page → productId required) | `app/lib/compile/compile.ts` |
+| Publish route binds product via `templateSuffix` (only on first publish or when out-of-sync) | `app/routes/app.api.pages.$id.publish.ts` |
+| Unpublish route restores `previousTemplateSuffix` | `app/routes/app.api.pages.$id.unpublish.ts` |
+| Editor loader fetches product; editor wraps in `ProductContext.Provider` | `app/routes/app.pages.$id.tsx` |
+| Canvas passes `product` only to `productAware` sections | `app/components/editor/Canvas.tsx` |
+| Product picker (App Bridge `shopify.resourcePicker`) | `app/components/editor/ProductPicker.tsx` |
+| Create-page modal: type select + product picker | `app/routes/app._index.tsx` |
+| 7 product-page tests + 8 product-token tests | `app/lib/compile/__tests__/{product-page,product-tokens}.test.ts` |
+| Product token reference doc | `docs/product-tokens.md` |
+| Manual smoke + variant-picker storefront protocol | `scripts/p1e-segment1-smoke.md` |
+
+### Sections marked `productAware: true`
+
+- `hero` — heading, subheading, ctaLabel can use product tokens.
+- `image-text` — heading, body, ctaLabel, imageAlt.
+- `product-details` — addToCartLabel.
+
+**Total sections: 13** (twelve from P1.B + the new Product details).
+
+### Architectural moment: variant picker
+
+The Product details section's `toLiquid` emits Shopify's standard
+custom-element pattern. Dawn/Sense/Studio/Refresh/Spotlight all
+implement `<variant-radios>` / `<variant-selects>` as custom
+elements that read the variants JSON and update price/image/URL on
+change. **We don't ship the JS — the theme does.**
+
+The variant picker working on the storefront is the architectural
+proof for this segment. **It cannot be agent-tested.** The smoke
+script's step 6 is the gate.
+
+### Verification of the four architectural commitments
+
+| # | Commitment | Status after P1.E segment 1 |
+|---|------------|---|
+| 1 | Pages keep rendering after uninstall | ✅ Unchanged. Compiled section file + JSON template live in the theme; uninstall doesn't touch them. Product binding via `templateSuffix` is reversible — unpublish restores the previous suffix without deleting our files. |
+| 2 | No runtime JS injection from our servers | ✅ Variant interaction is theme-JS-driven. We emit the standard markup; the theme already has the JS. The Pricing toggle carve-out (~15 lines, opt-in, scoped) is unchanged. |
+| 3 | Pages survive theme updates | ✅ Unchanged from P1.D segment 5. The `themes/publish` webhook still flags the page; re-publish updates the new theme's templateSuffix on the bound product. |
+| 4 | Stop if violating 1–3 | ✅ Unpublish never deletes; previousTemplateSuffix preserved across unpublish. Token replacement runs only on text/richtext fields (narrow allowlist). |
+
+### Test coverage
+
+`product-tokens.test.ts` — **8 / 8 green**: token replacement,
+diagnostics for unknowns, idempotency on edge cases.
+
+`product-page.test.ts` — **7 / 7 green**: section emission, `{% if
+product %}` guard, page-template binding, determinism, productId
+validation, token expansion in productAware sections, no expansion
+on landing pages.
+
+**Project total: 109 / 109 green** (15 new + 94 from P1.D segment 5).
+
+### Architectural concerns surfaced
+
+1. **`write_products` scope added.** Existing dev-store installs need
+   to re-authorize (Shopify will prompt automatically on next admin
+   load).
+
+2. **Variant picker depends on theme JS implementing
+   `<variant-radios>` / `<variant-selects>`.** Dawn / Sense / Studio
+   / Refresh / Spotlight all do as of 2025. Older themes may need a
+   page reload for variant changes. Documented as a code comment in
+   `product-details/toLiquid.ts`. P2 builds a compatibility matrix.
+
+3. **`previousTemplateSuffix` is best-effort.** If another app
+   changes the templateSuffix between our first publish and our
+   unpublish, we restore to whatever was there at OUR first publish.
+   Better than blanking; not perfect.
+
+4. **Deprecated GraphQL fields** (`Product.featuredImage`,
+   `Product.images`, `ProductVariant.image`) still used. Shopify
+   marks them deprecated in favor of `media`. Migration is a
+   post-P1.E cleanup that adds video support.
+
+5. **The "Insert product data" UX affordance was deferred.**
+   Mentioned in the spec as a small `<s-link>` in text/richtext
+   field renderers. Plumbing section + page context to the field
+   renderer is non-trivial; not on the critical path. Merchants can
+   type tokens manually; `docs/product-tokens.md` lists them.
+
+6. **Token replacement is text/richtext only** — narrow allowlist
+   prevents accidental tokenization of color hex strings or URL
+   paths.
+
+7. **The variant-picker storefront test cannot be agent-run.** Like
+   P1.D's uninstall test, the architectural moment lives with the
+   merchant.
+
+### Storefront variant picker test result
+
+> Spec asked: "Tell me what you changed and the result of the
+> storefront variant picker test specifically."
+
+**The agent cannot answer this.** Running the test requires a real
+dev store, a real product, a modern theme, and a real browser
+clicking variant options. The smoke script at
+`scripts/p1e-segment1-smoke.md` step 6 is the protocol; result
+template at the bottom. Merchant runs it; result lives there.
+
+### Known follow-ups carried into P1.E remaining segments
+
+- "Insert product data" UX affordance in text/richtext field
+  renderers (deferred from this segment).
+- Per-variant content authoring (segment 2 per the spec).
+- Migrate from deprecated `featuredImage` / `images` to `media`
+  (post-P1.E cleanup; adds video support).
+- Multilingual / Translate & Adapt integration.
+- RTL polish across all 13 sections.
+- Internal dogfood — Demeurer's marketing site on Demeurer.
 
 ---
 
@@ -1043,4 +1182,4 @@ npx prisma migrate reset         # Wipe + reapply (destructive — dev only)
 
 ---
 
-**Last updated:** 2026-05-04 (P1.D COMPLETE in code: theme-update recovery via `themes/publish` webhook + `themeMismatch` flag + editor banner + bulk re-publish UI + comprehensive exit gate at `scripts/p1d-exit-gate.md` + architectural commitments doc at `docs/architecture-commitments.md`; 94 / 94 tests green. **The exit gate is BLOCKED ON MERCHANT** — it requires a real dev store, install/uninstall, two themes, Lighthouse runs. Results template at the top of this file. P1.E (product pages, RTL, dogfood) is the final P1 phase.)
+**Last updated:** 2026-05-05 (P1.E segment 1 COMPLETE in code: product page binding + Product details section + `productAware` flag + product token replacement + `templateSuffix` binding via productUpdate; 13 sections total; 109 / 109 tests green. **The variant-picker storefront test is BLOCKED ON MERCHANT** — needs a real dev store with a multi-variant product on a modern theme; protocol at `scripts/p1e-segment1-smoke.md` step 6. P1.E remaining: multilingual / RTL polish, internal dogfood.)

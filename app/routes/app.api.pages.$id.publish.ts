@@ -2,13 +2,20 @@ import type { ActionFunctionArgs } from "react-router";
 
 import db from "../db.server";
 import { applyArtifact } from "../lib/compile/apply.ts";
-import { compilePage } from "../lib/compile/compile.ts";
+import {
+  compilePage,
+  CompileValidationError,
+} from "../lib/compile/compile.ts";
 import { classifyConflicts } from "../lib/compile/conflict-severity.ts";
 import {
   PublishInProgressError,
   withPublishLock,
 } from "../lib/compile/publish-lock.server.ts";
 import { migrateDocument } from "../lib/editor/types.ts";
+import {
+  getProductForBinding,
+  setProductTemplateSuffix,
+} from "../lib/product/fetch.server.ts";
 import { authenticate } from "../shopify.server";
 
 /**
@@ -64,13 +71,25 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
   const pageType: "landing" | "product" =
     page.type === "product" ? "product" : "landing";
 
-  const compileResult = await compilePage({
-    id: page.id,
-    handle: page.handle,
-    type: pageType,
-    source,
-    updatedAt: page.updatedAt,
-  });
+  let compileResult;
+  try {
+    compileResult = await compilePage({
+      id: page.id,
+      handle: page.handle,
+      type: pageType,
+      source,
+      updatedAt: page.updatedAt,
+      productId: page.productId,
+    });
+  } catch (err) {
+    if (err instanceof CompileValidationError) {
+      return Response.json(
+        { ok: false, reason: "validation", error: err.message },
+        { status: 400 },
+      );
+    }
+    throw err;
+  }
 
   // Hydrate ThemeWrite memory for the published theme. We can't get
   // the theme id without an admin query, so we hydrate inside the
@@ -151,6 +170,54 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
   }
 
   if (result.status === "success") {
+    // Product page binding: bind the product to our compiled
+    // template via templateSuffix. Capture the product's CURRENT
+    // templateSuffix once (on first publish) so unpublish can
+    // restore it instead of blanking — defensive against other apps
+    // that manage custom templates.
+    const productUpdates: { previousTemplateSuffix?: string | null } = {};
+    if (page.type === "product" && page.productId) {
+      const desiredSuffix = `demeurer-${page.handle}`;
+
+      // Fetch the product to read its CURRENT templateSuffix. If
+      // we've never published this page before, capture it.
+      const product = await getProductForBinding(admin, shop, page.productId);
+      const currentSuffix = product?.templateSuffix ?? null;
+
+      if (page.previousTemplateSuffix === null && currentSuffix !== desiredSuffix) {
+        // First publish — record what was there before we wrote.
+        productUpdates.previousTemplateSuffix = currentSuffix;
+      }
+
+      // Only call productUpdate when the suffix actually needs
+      // changing. On a re-publish where the product is already
+      // bound, we save an API call.
+      if (currentSuffix !== desiredSuffix) {
+        const setResult = await setProductTemplateSuffix(
+          admin,
+          shop,
+          page.productId,
+          desiredSuffix,
+        );
+        if (!setResult.ok) {
+          // Theme files are written, but the binding didn't take.
+          // Surface as a partial failure: storefront URL won't yet
+          // route to our template, but a retry will fix it without
+          // re-writing the (already-correct) theme files.
+          return Response.json(
+            {
+              ok: false,
+              reason: "product_binding_failed",
+              errors: setResult.errors,
+              result,
+              firstPublish: isFirstPublish,
+            },
+            { status: 207 },
+          );
+        }
+      }
+    }
+
     await db.page.update({
       where: { id: page.id },
       data: {
@@ -160,6 +227,9 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         // page is no longer mismatched with whatever theme it used
         // to be on.
         themeMismatch: false,
+        ...(productUpdates.previousTemplateSuffix !== undefined
+          ? { previousTemplateSuffix: productUpdates.previousTemplateSuffix }
+          : {}),
       },
     });
     return Response.json({ ok: true, result, firstPublish: isFirstPublish });

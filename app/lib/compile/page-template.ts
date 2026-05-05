@@ -30,6 +30,8 @@
 
 import type { Block, EditorDocument } from "../editor/types.ts";
 import { scopeClass } from "../sections/_shared/responsive-css.ts";
+import type { Field } from "../sections/types.ts";
+import { replaceProductTokens } from "./product-tokens.ts";
 import { buildResponsiveStyles } from "./responsive-settings.ts";
 import type { SectionTemplate } from "./section-templates/index.ts";
 import { stableStringify } from "./stable-json.ts";
@@ -65,7 +67,7 @@ export function buildPageTemplate(
     const key = stableSectionKey(block, usedKeys);
     usedKeys.add(key);
 
-    const sectionEntry = buildSectionEntry(block, template);
+    const sectionEntry = buildSectionEntry(block, template, page.type, diagnostics);
     sections[key] = sectionEntry;
     order.push(key);
   }
@@ -77,13 +79,29 @@ export function buildPageTemplate(
 function buildSectionEntry(
   block: Block,
   template: SectionTemplate,
+  pageType: "landing" | "product",
+  diagnostics: Diagnostic[],
 ): Record<string, unknown> {
   const scope = scopeClass(template.type, block.id);
   const baseSettings = template.toSettings(block.props.mobile);
+
+  // Apply product-token replacement to text/richtext fields when:
+  //   - this is a product page, AND
+  //   - the section is productAware.
+  //
+  // Token replacement on landing pages is intentionally skipped —
+  // `{{product.title}}` would Liquid-render as empty on a non-
+  // product template anyway, but we leave the literal in place so
+  // the merchant sees it and reconsiders.
+  const tokenized =
+    pageType === "product" && template.productAware
+      ? applyTokensToTextFields(baseSettings, template.schema.fields, block.id, diagnostics)
+      : baseSettings;
+
   const styles = buildResponsiveStyles(scope, block.props, template.propMap);
 
   const fullSettings: Record<string, unknown> = {
-    ...baseSettings,
+    ...tokenized,
     scope_id: scope,
     mobile_styles: styles.mobile_styles,
     tablet_styles: styles.tablet_styles,
@@ -105,6 +123,30 @@ function buildSectionEntry(
   }
 
   return entry;
+}
+
+/**
+ * Walk the schema's text/richtext fields and run `replaceProductTokens`
+ * on the matching settings entries. Group/list fields aren't recursed
+ * into for tokenization — group fields flatten into prefixed setting
+ * keys (e.g. `cta_label`) handled by `settings-schema.ts`, and list
+ * fields become Shopify blocks (handled separately at the block level
+ * via `template.toBlocks`).
+ */
+function applyTokensToTextFields(
+  settings: Record<string, unknown>,
+  fields: Field[],
+  blockId: string,
+  diagnostics: Diagnostic[],
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...settings };
+  for (const field of fields) {
+    if (field.kind !== "text" && field.kind !== "richtext") continue;
+    const v = out[field.key];
+    if (typeof v !== "string") continue;
+    out[field.key] = replaceProductTokens(v, diagnostics, blockId, field.key);
+  }
+  return out;
 }
 
 /**

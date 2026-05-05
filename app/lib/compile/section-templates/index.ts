@@ -19,6 +19,7 @@ import { htmlTemplate } from "./html.ts";
 import { imageTextTemplate } from "./image-text.ts";
 import { logoWallTemplate } from "./logo-wall.ts";
 import { pricingTemplate } from "./pricing.ts";
+import { productDetailsTemplate } from "./product-details.ts";
 import { spacerTemplate } from "./spacer.ts";
 import { testimonialTemplate } from "./testimonial.ts";
 import { videoTemplate } from "./video.ts";
@@ -37,6 +38,7 @@ const ALL: SectionTemplate[] = [
   formTemplate,
   spacerTemplate,
   htmlTemplate,
+  productDetailsTemplate,
 ];
 
 export const SECTION_TEMPLATES: Readonly<Record<string, SectionTemplate>> = (() => {

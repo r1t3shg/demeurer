@@ -40,11 +40,33 @@ export interface CompilePageInput {
    * row. Initial implementation: `updatedAt.getTime()`.
    */
   updatedAt: Date;
+  /**
+   * Required when `type === "product"`. Cached on Page.productHandle
+   * (separate from the page's own handle, which can diverge — e.g.
+   * two Demeurer pages for the same product as A/B variants).
+   */
+  productId?: string | null;
+}
+
+export class CompileValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CompileValidationError";
+  }
 }
 
 export async function compilePage(page: CompilePageInput): Promise<CompileResult> {
   const startedAt = Date.now();
   const diagnostics: Diagnostic[] = [];
+
+  // Application-layer validation: product pages must be bound to a
+  // product. The Prisma schema keeps `productId` optional so existing
+  // landing pages stay valid; we enforce the requirement here.
+  if (page.type === "product" && !page.productId) {
+    throw new CompileValidationError(
+      "Product pages must be bound to a product before compile (productId is missing on the Page row).",
+    );
+  }
 
   // Validate by feeding each block through the section's coerce path.
   // The coerce calls happen inside `template.toSettings` (per-section),

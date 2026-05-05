@@ -55,6 +55,7 @@ const BODY = `
 export const imageTextTemplate: SectionTemplate = {
   type: IMAGE_TEXT_TYPE,
   schema: imageTextSchema,
+  productAware: true,
   buildSectionTemplate: () =>
     buildSharedSectionFile({
       type: IMAGE_TEXT_TYPE,

@@ -3,9 +3,11 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
+import { useState } from "react";
 import { redirect, useFetcher, useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
+import { useProductPicker } from "../components/editor/ProductPicker";
 import db from "../db.server";
 import { getShopFromRequest } from "../lib/shop.server";
 import { generateUniqueHandle } from "../lib/slug.server";
@@ -69,6 +71,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const title = String(formData.get("title") ?? "").trim();
   const type = String(formData.get("type") ?? "");
+  const productId = String(formData.get("productId") ?? "").trim();
+  const productHandle = String(formData.get("productHandle") ?? "").trim();
 
   // Handwritten validation — no zod yet, per scope.
   if (!title) {
@@ -86,8 +90,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       field: "type" as const,
     };
   }
+  if (type === "product" && (!productId || !productHandle)) {
+    return {
+      error: "Pick a product to bind this page to.",
+      field: "productId" as const,
+    };
+  }
 
   const handle = await generateUniqueHandle(shop, title);
+
+  // Product pages start with a Product details section pre-inserted
+  // so the page renders something useful immediately. Landing pages
+  // start empty.
+  const initialSource =
+    type === "product"
+      ? {
+          version: 2,
+          blocks: [
+            {
+              id: `pd_${Math.random().toString(36).slice(2, 12)}`,
+              type: "product-details",
+              props: { mobile: {} },
+              children: [],
+            },
+          ],
+        }
+      : { blocks: [] };
 
   const page = await db.page.create({
     data: {
@@ -95,8 +123,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       title,
       type,
       handle,
-      // Empty initial source. Editor schema will fill this in later segments.
-      source: { blocks: [] },
+      source: initialSource,
+      ...(type === "product"
+        ? { productId, productHandle }
+        : {}),
     },
     select: { id: true },
   });
@@ -121,9 +151,31 @@ function formatUpdated(iso: string): string {
 export default function PagesIndex() {
   const { pages, shop, mismatchCount } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
+  const productPicker = useProductPicker();
 
   const error = fetcher.data && "error" in fetcher.data ? fetcher.data : null;
   const isSubmitting = fetcher.state === "submitting";
+
+  const [pageType, setPageType] = useState<"landing" | "product">("landing");
+  const [picked, setPicked] = useState<{
+    id: string;
+    handle: string;
+    title: string;
+  } | null>(null);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [titleOverride, setTitleOverride] = useState<string>("");
+
+  const handlePickProduct = async () => {
+    setPickerError(null);
+    try {
+      const product = await productPicker.open();
+      if (!product) return;
+      setPicked({ id: product.id, handle: product.handle, title: product.title });
+      setTitleOverride(product.title);
+    } catch (err) {
+      setPickerError(err instanceof Error ? err.message : "Picker unavailable");
+    }
+  };
 
   const submitCreate = () => {
     const form = document.getElementById(
@@ -237,19 +289,81 @@ export default function PagesIndex() {
       <s-modal id="create-page-modal" heading="Create page">
         <fetcher.Form method="post" id="create-page-form">
           <s-stack direction="block" gap="base">
+            <s-select
+              name="type"
+              label="Page type"
+              value={pageType}
+              onChange={(event) => {
+                const target = event.target as unknown as { value?: string };
+                const v = target.value === "product" ? "product" : "landing";
+                setPageType(v);
+                if (v === "landing") {
+                  setPicked(null);
+                  setPickerError(null);
+                  setTitleOverride("");
+                }
+              }}
+            >
+              <s-option value="landing">Landing page</s-option>
+              <s-option value="product">Product page</s-option>
+            </s-select>
+            {pageType === "landing" ? (
+              <s-paragraph>
+                A standalone page (e.g., About, Sale).
+              </s-paragraph>
+            ) : (
+              <s-paragraph>A page for one of your products.</s-paragraph>
+            )}
+
+            {pageType === "product" ? (
+              <s-stack direction="block" gap="small">
+                {picked ? (
+                  <s-banner tone="success">
+                    Selected:{" "}
+                    <strong>{picked.title}</strong> (
+                    <code>{picked.handle}</code>)
+                  </s-banner>
+                ) : null}
+                <s-stack direction="inline" gap="small">
+                  <s-button onClick={() => void handlePickProduct()}>
+                    {picked ? "Change product" : "Pick product"}
+                  </s-button>
+                </s-stack>
+                {pickerError ? (
+                  <s-banner tone="critical">{pickerError}</s-banner>
+                ) : null}
+                {error && error.field === "productId" ? (
+                  <s-banner tone="critical">{error.error}</s-banner>
+                ) : null}
+                <input type="hidden" name="productId" value={picked?.id ?? ""} />
+                <input
+                  type="hidden"
+                  name="productHandle"
+                  value={picked?.handle ?? ""}
+                />
+              </s-stack>
+            ) : null}
+
             <s-text-field
               name="title"
               label="Page title"
               required
               autocomplete="off"
+              value={
+                pageType === "product" ? titleOverride : undefined
+              }
+              onChange={
+                pageType === "product"
+                  ? (event) => {
+                      const target = event.target as unknown as {
+                        value?: string;
+                      };
+                      setTitleOverride(target.value ?? "");
+                    }
+                  : undefined
+              }
               {...(error?.field === "title" ? { error: error.error } : {})}
             />
-            {/* No defaultValue — s-select uses the first non-disabled option
-                (`landing`) as the default when no value is set. */}
-            <s-select name="type" label="Page type">
-              <s-option value="landing">Landing page</s-option>
-              <s-option value="product">Product page</s-option>
-            </s-select>
             {error && error.field === "type" && (
               <s-banner tone="critical">{error.error}</s-banner>
             )}

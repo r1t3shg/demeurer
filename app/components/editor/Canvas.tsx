@@ -24,6 +24,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getSection } from "../../lib/sections";
+import { useProduct } from "./ProductContext";
 import type { ThemeTokens } from "../../lib/sections";
 import { BREAKPOINT_META } from "../../lib/editor/breakpoints";
 import { resolveProps } from "../../lib/editor/resolve";
@@ -310,6 +311,7 @@ function InlineBlock({
   breakpoint: Breakpoint;
 }) {
   const def = getSection(block.type);
+  const product = useProduct();
   if (!def) {
     return (
       <div className="demeurer-section-unknown">
@@ -333,9 +335,16 @@ function InlineBlock({
       </div>
     );
   }
+  // Pass `product` only to sections whose definition opted in via
+  // `productAware: true`. Keeps non-product-aware Render functions
+  // pure (their type signature doesn't accept product anyway, but
+  // omitting the prop is the cleaner contract).
+  const renderProps = def.productAware
+    ? { props: resolved, themeTokens, product }
+    : { props: resolved, themeTokens };
   return (
     <div className="demeurer-section-frame demeurer-section-frame-readonly">
-      <Render props={resolved} themeTokens={themeTokens} />
+      <Render {...renderProps} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 
 import db from "../db.server";
+import { setProductTemplateSuffix } from "../lib/product/fetch.server.ts";
 import { authenticate } from "../shopify.server";
 
 /**
@@ -25,7 +26,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
 
   const id = params.id;
@@ -36,10 +37,24 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
+  // For product pages: restore the product's previous templateSuffix
+  // (or clear to default if we never recorded one). The product's
+  // theme files stay in place — Demeurer never destroys.
+  if (page.type === "product" && page.productId) {
+    await setProductTemplateSuffix(
+      admin,
+      shop,
+      page.productId,
+      page.previousTemplateSuffix ?? null,
+    );
+  }
+
   await db.page.update({
     where: { id: page.id },
     data: { publishedAt: null },
     // NOTE: themeId is intentionally not cleared.
+    // NOTE: previousTemplateSuffix is also preserved — if the merchant
+    // re-publishes, we don't want to "forget" the original suffix.
   });
 
   return Response.json({ ok: true });

@@ -22,6 +22,7 @@ import { htmlDefinition } from "./html/index.ts";
 import { imageTextDefinition } from "./image-text/index.ts";
 import { logoWallDefinition } from "./logo-wall/index.ts";
 import { pricingDefinition } from "./pricing/index.ts";
+import { productDetailsDefinition } from "./product-details/index.ts";
 import { listSections, registerSection } from "./registry.ts";
 import { spacerDefinition } from "./spacer/index.ts";
 import { testimonialDefinition } from "./testimonial/index.ts";
@@ -39,6 +40,7 @@ registerSection(videoDefinition);
 registerSection(formDefinition);
 registerSection(spacerDefinition);
 registerSection(htmlDefinition);
+registerSection(productDetailsDefinition);
 
 // Make registration visible in dev — silently failing to register a
 // section produces a confusing "Unknown section" canvas error that's

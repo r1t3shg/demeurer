@@ -34,6 +34,7 @@ const BODY = `
 export const heroTemplate: SectionTemplate = {
   type: HERO_TYPE,
   schema: heroSchema,
+  productAware: true,
   buildSectionTemplate: () =>
     buildSharedSectionFile({
       type: HERO_TYPE,

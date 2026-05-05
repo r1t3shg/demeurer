@@ -179,11 +179,55 @@ export interface SectionSchema {
 
 /* ------------------------------ Render side ----------------------------- */
 
+/**
+ * Loose-typed mirror of `app/lib/product/fetch.server.ts:ProductData`.
+ * Section render code is browser-side; importing the *.server.ts
+ * module would pull node-specific deps. Sections receive product
+ * data via this minimal shape (passed by the Canvas only to
+ * sections whose definition has `productAware: true`).
+ */
+export interface ProductData {
+  id: string;
+  handle: string;
+  title: string;
+  templateSuffix: string | null;
+  vendor: string | null;
+  featuredImage: { url: string; altText: string | null } | null;
+  images: Array<{
+    url: string;
+    altText: string | null;
+    width?: number;
+    height?: number;
+  }>;
+  variants: Array<{
+    id: string;
+    title: string;
+    availableForSale: boolean;
+    price: string;
+    compareAtPrice: string | null;
+    selectedOptions: Array<{ name: string; value: string }>;
+    image: { url: string; altText: string | null } | null;
+  }>;
+  options: Array<{
+    id: string;
+    name: string;
+    optionValues: Array<{ id: string; name: string }>;
+  }>;
+}
+
 export interface SectionRenderProps {
   /** The block's props bag — shape is whatever the section's schema declares. */
   props: Record<string, unknown>;
   /** Live theme tokens. Stub values during P1.B until iframe preview lands. */
   themeTokens: ThemeTokens;
+  /**
+   * The bound Shopify product, when:
+   *   - the page's `type === "product"`, AND
+   *   - `SectionDefinition.productAware === true`, AND
+   *   - the product fetch succeeded.
+   * Otherwise `null` (or omitted by the Canvas for non-productAware sections).
+   */
+  product?: ProductData | null;
 }
 
 /* ----------------------------- Liquid compile --------------------------- */
@@ -275,6 +319,16 @@ export interface SectionDefinition {
     props: Record<string, unknown>,
     themeTokens: ThemeTokens,
   ) => SectionQualityIssue[];
+  /**
+   * If true, this section can use Shopify product context. The
+   * Canvas passes the bound `ProductData` as the `product` prop to
+   * Render; the compile pipeline runs `replaceProductTokens` on the
+   * section's text and richtext settings before serialization, so
+   * `{{product.title}}` etc. become real Liquid in the output.
+   *
+   * Default: false. Sections opt in.
+   */
+  productAware?: boolean;
 }
 
 /** Helper type for components that pass children through (e.g. wrappers). */

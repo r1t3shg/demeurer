@@ -22,6 +22,7 @@ export const heroDefinition: SectionDefinition = {
   defaults: { ...heroDefaults },
   Render: HeroRender,
   toLiquid: heroToLiquid,
+  productAware: true,
   qualityCheck: (props, themeTokens) => {
     const p = coerceHeroProps(props);
     const issues: SectionQualityIssue[] = [];

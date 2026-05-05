@@ -34,6 +34,13 @@ export interface SectionTemplate {
   /** Editor schema, used to derive `{% schema %}` JSON. */
   schema: SectionSchema;
   /**
+   * Mirrors `SectionDefinition.productAware`. When true, the page
+   * template builder runs `replaceProductTokens` on every text and
+   * richtext setting so `{{product.title}}` etc. become real Liquid
+   * in the published output.
+   */
+  productAware?: boolean;
+  /**
    * Build the parameterless `sections/demeurer-{type}.liquid` content.
    * Pure: same bytes for every compile.
    */

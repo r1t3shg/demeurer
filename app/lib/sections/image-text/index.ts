@@ -19,6 +19,7 @@ export const imageTextDefinition: SectionDefinition = {
   defaults: { ...imageTextDefaults },
   Render: ImageTextRender,
   toLiquid: imageTextToLiquid,
+  productAware: true,
   qualityCheck: (props) => {
     const p = coerceImageTextProps(props);
     const issues: SectionQualityIssue[] = [];
