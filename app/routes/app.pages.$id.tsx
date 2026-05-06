@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import type {
+  HeadersFunction,
+  LoaderFunctionArgs,
+  ShouldRevalidateFunction,
+} from "react-router";
 import { useLoaderData, useSearchParams } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
@@ -119,6 +123,38 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     product,
     previewQuery,
   };
+};
+
+/**
+ * The selection state is mirrored into the URL as `?b=<blockId>` so a
+ * deep-link to a block survives reload. That URL change must NOT
+ * re-run the loader, because a fresh loader response gives us a new
+ * `page.source` reference, which retriggers `loadDocument()`, which
+ * resets `selectedBlockId` to null — selecting then immediately
+ * deselecting in a tight loop and reloading the preview iframe on
+ * every cycle.
+ *
+ * Tell React Router: if only `?b=` changed in the URL and we're not
+ * coming from a form submission, skip revalidation. Real changes
+ * (different page id, action result, fetcher publish) still
+ * revalidate normally.
+ */
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  formMethod,
+  defaultShouldRevalidate,
+}) => {
+  if (formMethod) return defaultShouldRevalidate;
+  if (currentUrl.pathname !== nextUrl.pathname) {
+    return defaultShouldRevalidate;
+  }
+  const a = new URLSearchParams(currentUrl.search);
+  const b = new URLSearchParams(nextUrl.search);
+  a.delete("b");
+  b.delete("b");
+  if (a.toString() === b.toString()) return false;
+  return defaultShouldRevalidate;
 };
 
 export default function PageEditor() {
