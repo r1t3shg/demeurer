@@ -4,12 +4,18 @@ import type { ImageField as ImageFieldDef } from "../../../lib/sections";
 import type { FieldRendererProps } from "./types";
 
 /**
- * Image picker backed by App Bridge `resourcePicker({ type: "file" })`.
+ * Image input — paste a Shopify CDN URL.
+ *
+ * Why no in-app picker: modern App Bridge `shopify.resourcePicker` only
+ * supports `type: "product" | "collection" | "variant"`. Calling it
+ * with `type: "file"` triggers a postMessage flood between the embedded
+ * iframe and the admin host that freezes the tab. Shopify's documented
+ * pattern for files is to open Files admin, upload/pick, copy the CDN
+ * URL, paste it back.
  *
  * Architectural commitment: every image must live on `cdn.shopify.com`.
- * If the merchant somehow ends up with another origin (legacy data,
- * picker quirk), we reject it loudly so a non-CDN URL never reaches the
- * compiled Liquid output — that would break post-uninstall rendering.
+ * The compiled Liquid output references these URLs directly, so a
+ * non-CDN URL would break post-uninstall rendering.
  */
 export function ImageField({
   field,
@@ -18,48 +24,36 @@ export function ImageField({
 }: FieldRendererProps<ImageFieldDef>) {
   const current = typeof value === "string" ? value : "";
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState<string>(current);
 
-  const openPicker = async () => {
-    setError(null);
-    const bridge = getShopifyBridge();
-    if (!bridge?.resourcePicker) {
-      setError("Image picker isn't available outside the Shopify admin.");
+  const commit = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      setError(null);
+      onChange("");
       return;
     }
-
-    try {
-      setBusy(true);
-      const result = (await bridge.resourcePicker({
-        type: "file",
-        multiple: false,
-        filter: { contentType: "IMAGE" },
-      })) as PickerResult | undefined | null;
-
-      if (!result || result.length === 0) return;
-
-      const url = extractUrl(result[0]);
-      if (!url) {
-        setError("Selected file has no preview URL.");
-        return;
-      }
-      if (!isShopifyCdnUrl(url)) {
-        setError(
-          "Image must be hosted on cdn.shopify.com. Upload it to Files first.",
-        );
-        return;
-      }
-      onChange(url);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Picker failed.");
-    } finally {
-      setBusy(false);
+    if (!isShopifyCdnUrl(trimmed)) {
+      setError(
+        "URL must be on cdn.shopify.com. Upload to Files first, then paste the URL.",
+      );
+      return;
     }
+    setError(null);
+    onChange(trimmed);
   };
 
   const remove = () => {
     setError(null);
+    setDraft("");
     onChange("");
+  };
+
+  const openFilesAdmin = () => {
+    // shopify:admin/<path> is resolved by the embedded admin to the
+    // merchant's own admin URL. _blank opens a new tab so the editor
+    // tab stays put.
+    window.open("shopify:admin/content/files", "_blank", "noopener");
   };
 
   return (
@@ -73,19 +67,41 @@ export function ImageField({
             className="demeurer-field-image-thumb"
           />
           <div className="demeurer-field-image-actions">
-            <s-button onClick={openPicker} {...(busy ? { disabled: true } : {})}>
-              Replace
-            </s-button>
             <s-button tone="critical" onClick={remove}>
               Remove
             </s-button>
           </div>
         </div>
-      ) : (
-        <s-button onClick={openPicker} {...(busy ? { disabled: true } : {})}>
-          Pick image
-        </s-button>
-      )}
+      ) : null}
+
+      <div className="demeurer-field-image-url">
+        <s-text-field
+          label="Image URL"
+          labelAccessibilityVisibility="exclusive"
+          placeholder="https://cdn.shopify.com/..."
+          value={draft}
+          onChange={(event) => {
+            const target = event.target as unknown as { value?: string };
+            setDraft(target.value ?? "");
+          }}
+          onBlur={() => commit(draft)}
+        />
+        <div className="demeurer-field-image-actions">
+          <s-button onClick={openFilesAdmin}>
+            Open Files admin
+          </s-button>
+          {draft && draft !== current ? (
+            <s-button variant="primary" onClick={() => commit(draft)}>
+              Use URL
+            </s-button>
+          ) : null}
+        </div>
+        <div className="demeurer-field-image-hint">
+          Upload your image in Shopify Admin → Content → Files, copy the
+          file URL, and paste it here.
+        </div>
+      </div>
+
       {error ? (
         <div className="demeurer-field-image-error" role="alert">
           {error}
@@ -95,43 +111,12 @@ export function ImageField({
   );
 }
 
-interface PickerSelection {
-  image?: { originalSrc?: string; url?: string };
-  preview?: { image?: { url?: string } };
-  url?: string;
-  originalSrc?: string;
-}
-type PickerResult = PickerSelection[];
-
-interface ShopifyBridge {
-  resourcePicker?: (opts: {
-    type: "file";
-    multiple?: boolean;
-    filter?: { contentType?: string };
-  }) => Promise<unknown>;
-}
-
-function getShopifyBridge(): ShopifyBridge | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as { shopify?: ShopifyBridge };
-  return w.shopify ?? null;
-}
-
-function extractUrl(sel: PickerSelection): string | null {
-  return (
-    sel.image?.originalSrc ??
-    sel.image?.url ??
-    sel.preview?.image?.url ??
-    sel.originalSrc ??
-    sel.url ??
-    null
-  );
-}
-
 function isShopifyCdnUrl(url: string): boolean {
   try {
     const u = new URL(url, window.location.origin);
-    return u.hostname === "cdn.shopify.com" || u.hostname.endsWith(".cdn.shopify.com");
+    return (
+      u.hostname === "cdn.shopify.com" || u.hostname.endsWith(".cdn.shopify.com")
+    );
   } catch {
     return false;
   }
