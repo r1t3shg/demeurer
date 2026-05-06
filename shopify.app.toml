@@ -1,4 +1,17 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+#
+# CONTRIBUTOR WARNING: do NOT run `shopify app config link` against this file
+# unless you know what you're doing. `config:link` overwrites this file with
+# whatever scopes/webhooks are currently deployed on the Shopify side of the
+# linked app. If the linked app was created earlier without `read_themes`,
+# `config:link` will silently strip it and the next `npm run deploy` will
+# fail with:
+#     Missing scope for webhook topic: themes/publish (read_themes)
+#     Missing scope for webhook topic: themes/update (read_themes)
+# Recovery: `git restore shopify.app.toml`, edit `client_id` to point at your
+# own Shopify app (or run `npm run config:link` once and immediately restore
+# the [access_scopes] and [webhooks] blocks below from git), then
+# `npm run deploy`.
 
 client_id = "fe124ee2f9cadfe616fe032658b8cde4"
 application_url = "https://example.com"
@@ -11,6 +24,8 @@ name = "Demeurer"
 # section files into the merchant's theme. This is what makes Demeurer's
 # architectural commitment possible (pages keep rendering after uninstall,
 # zero runtime JS, pages survive theme updates because they ARE the theme).
+# read_themes specifically is required by the `themes/update` and
+# `themes/publish` webhook subscriptions below — do NOT remove it.
 scopes = "write_themes,read_themes,write_content,read_content,read_products,write_products,read_files,write_files"
 
 [webhooks]
