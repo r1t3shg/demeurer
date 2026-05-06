@@ -95,7 +95,13 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       // Tight CSP-ish defaults via headers we can set without breaking
       // theme CSS. The route is iframed inside the embedded admin so
       // we explicitly opt into being framed.
-      "x-frame-options": "SAMEORIGIN",
+      // CSP frame-ancestors permits framing from the editor (same origin)
+      // AND from inside the embedded Shopify Admin, where the editor itself
+      // is iframed. Plain `X-Frame-Options: SAMEORIGIN` would block this:
+      // Chrome checks the top-level ancestor, which is admin.shopify.com,
+      // not our tunnel/host. CSP supersedes X-Frame-Options.
+      "content-security-policy":
+        "frame-ancestors 'self' https://admin.shopify.com https://*.myshopify.com",
       // Editor reads must always be fresh.
       "cache-control": "no-store",
     },
@@ -212,7 +218,13 @@ function errorPage(status: number, reason: string): Response {
     status,
     headers: {
       "content-type": "text/html; charset=utf-8",
-      "x-frame-options": "SAMEORIGIN",
+      // CSP frame-ancestors permits framing from the editor (same origin)
+      // AND from inside the embedded Shopify Admin, where the editor itself
+      // is iframed. Plain `X-Frame-Options: SAMEORIGIN` would block this:
+      // Chrome checks the top-level ancestor, which is admin.shopify.com,
+      // not our tunnel/host. CSP supersedes X-Frame-Options.
+      "content-security-policy":
+        "frame-ancestors 'self' https://admin.shopify.com https://*.myshopify.com",
       "cache-control": "no-store",
     },
   });
