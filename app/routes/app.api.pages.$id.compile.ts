@@ -43,6 +43,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     type: pageType,
     source,
     updatedAt: page.updatedAt,
+    productId: page.productId,
   });
 
   return Response.json(result);

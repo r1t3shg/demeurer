@@ -45,6 +45,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     type: pageType,
     source,
     updatedAt: page.updatedAt,
+    productId: page.productId,
   });
 
   const artifactFile = compileResult.artifact.files.find((f) => f.path === path);
