@@ -23,7 +23,22 @@ export default function App() {
         <Meta />
         <Links />
       </head>
-      <body suppressHydrationWarning>
+      {/*
+        Grammarly opt-out: data-gramm / data-gramm_editor / data-enable-grammarly
+        on <body> tell the desktop browser extension to skip this page.
+        Without these, Grammarly injects a <grammarly-desktop-integration>
+        element into <html> and adds data-gr-ext-installed /
+        data-new-gr-c-s-check-loaded attributes to <body>, both of which
+        fail React hydration. suppressHydrationWarning handles attribute
+        mismatches but not injected child elements, so the opt-out is
+        necessary too.
+      */}
+      <body
+        suppressHydrationWarning
+        data-gramm="false"
+        data-gramm_editor="false"
+        data-enable-grammarly="false"
+      >
         <Outlet />
         <ScrollRestoration />
         <Scripts />
