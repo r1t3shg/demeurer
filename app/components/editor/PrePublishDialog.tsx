@@ -63,6 +63,21 @@ export function PrePublishDialog({
     }
   }, [open]);
 
+  // Polaris <s-modal> fires a `close` event on any dismiss path
+  // (X button, Escape, click-outside). Without this listener, those
+  // dismissals leave publishStage.stage === "confirm" stuck, which
+  // makes the Publish button silently no-op on the next click
+  // (handleClickPublish guards on idle|success|error).
+  useEffect(() => {
+    const el = modalRef.current as
+      | (EventTarget & { addEventListener: typeof EventTarget.prototype.addEventListener })
+      | null;
+    if (!el) return;
+    const handler = () => onCancel();
+    el.addEventListener("close", handler);
+    return () => el.removeEventListener("close", handler);
+  }, [onCancel]);
+
   async function fetchDiff(path: string) {
     setDiffLoading(true);
     setDiffData(null);

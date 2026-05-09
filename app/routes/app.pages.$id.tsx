@@ -313,10 +313,15 @@ export default function PageEditor() {
   }, [publishStage.stage]);
 
   const handleClickPublish = () => {
+    // Permissive guard: any non-active stage restarts the flow. This
+    // covers the case where the pre-publish modal was dismissed via
+    // X/Escape/click-outside (which leaves stage stuck on "confirm"
+    // until the modal's close listener fires) and also intentional
+    // "publish again" clicks from success/error/partial states.
     if (
-      publishStage.stage === "idle" ||
-      publishStage.stage === "success" ||
-      publishStage.stage === "error"
+      publishStage.stage !== "saving" &&
+      publishStage.stage !== "checking_drift" &&
+      publishStage.stage !== "publishing"
     ) {
       flow.cancel();
       void flow.start();
