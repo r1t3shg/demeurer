@@ -1,9 +1,30 @@
+import { useEffect, useState } from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { Outlet, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
 import { authenticate } from "../shopify.server";
+
+/**
+ * Polaris web components (`<s-button>`, `<s-page>`, ...) mutate
+ * themselves in their `connectedCallback` — they inject inline styles
+ * once they're attached to the DOM. SSR renders them without those
+ * styles; on first hydration React sees a mismatch and tears down the
+ * entire server tree to fall back to client rendering. The visible
+ * effect is a flash of unstyled HTML before the editor reappears.
+ *
+ * Embedded admin apps render inside an iframe on admin.shopify.com,
+ * so SSR has no SEO/perceived-perf benefit here. Skip SSR for the
+ * /app/* tree by rendering nothing on the server, then mount on the
+ * client. Both passes return the same null/placeholder, so React
+ * never sees a mismatch.
+ */
+function useHydrated(): boolean {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  return hydrated;
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -21,6 +42,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function App() {
   const { apiKey, showCatalog } = useLoaderData<typeof loader>();
+  const hydrated = useHydrated();
+
+  if (!hydrated) {
+    // Stable null placeholder for the server pass + the first client
+    // render. Avoids hydration mismatch caused by Polaris web
+    // components mutating themselves post-mount.
+    return null;
+  }
 
   return (
     <AppProvider embedded apiKey={apiKey}>
