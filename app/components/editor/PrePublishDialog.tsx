@@ -63,20 +63,14 @@ export function PrePublishDialog({
     }
   }, [open]);
 
-  // Polaris <s-modal> fires a `close` event on any dismiss path
-  // (X button, Escape, click-outside). Without this listener, those
-  // dismissals leave publishStage.stage === "confirm" stuck, which
-  // makes the Publish button silently no-op on the next click
-  // (handleClickPublish guards on idle|success|error).
-  useEffect(() => {
-    const el = modalRef.current as
-      | (EventTarget & { addEventListener: typeof EventTarget.prototype.addEventListener })
-      | null;
-    if (!el) return;
-    const handler = () => onCancel();
-    el.addEventListener("close", handler);
-    return () => el.removeEventListener("close", handler);
-  }, [onCancel]);
+  // NOTE: an earlier attempt added a `close` listener on the s-modal
+  // to keep publishStage in sync when the merchant dismissed via X /
+  // Escape / click-outside. In App Bridge mode the s-modal emits a
+  // spurious `close` event during its initial open transition, which
+  // immediately reverted the flow to idle and made the modal flash
+  // closed. The permissive guard in handleClickPublish (route file)
+  // is enough to recover from a stuck "confirm" stage on the next
+  // click — listener removed.
 
   async function fetchDiff(path: string) {
     setDiffLoading(true);
